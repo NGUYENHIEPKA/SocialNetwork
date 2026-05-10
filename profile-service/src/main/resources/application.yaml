@@ -1,12 +1,28 @@
-
 server:
-  port: 8081
+  port: ${PORT:8081}
   servlet:
     context-path: /profile
 
 spring:
   neo4j:
-    uri: bolt://localhost:7687
+    uri: ${SPRING_NEO4J_URI:bolt://localhost:7687}
     authentication:
-      username: neo4j
-      password: 12345678
+      username: ${SPRING_NEO4J_USERNAME:neo4j}
+      password: ${SPRING_NEO4J_PASSWORD:12345678}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: always
+      show-components: always
+  health:
+    neo4j:
+      enabled: false
+
+logging:
+  level:
+    org.springframework.data.neo4j: DEBUG
