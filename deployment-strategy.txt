@@ -1,0 +1,44 @@
+CHUYÊN ĐỀ: CHIẾN LƯỢC DEPLOY MICROSERVICES (RENDER & VERCEL)
+
+1. TỔNG QUAN HỆ THỐNG:
+- Frontend: React/Vite (web-app) -> Deploy lên Vercel.
+- Backend: Spring Boot & Python (AI) -> Deploy lên Render.
+- Database: MySQL (Cần dùng bên thứ 3 như TiDB Cloud hoặc Aiven).
+
+2. LUỒNG HOẠT ĐỘNG (FLOW):
+- User -> Vercel (Frontend)
+- Vercel -> Render (API Gateway - Public URL)
+- API Gateway -> Render (Internal Services: identity-service, post-service... - Private Network)
+- Các service gọi nhau qua Host nội bộ của Render (vd: http://identity-service:8080).
+
+3. ĐÓNG GÓI ỨNG DỤNG (DOCKER):
+Sử dụng Multi-stage build để tối ưu dung lượng Image.
+Mẫu Dockerfile cho Java 21:
+--------------------------------------------------
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS build
+WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline
+COPY src ./src
+RUN mvn clean package -DskipTests
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/*.jar app.jar
+ENV PORT=8080
+EXPOSE 8080
+ENTRYPOINT ["java", "-jar", "app.jar"]
+--------------------------------------------------
+
+4. CHUẨN HÓA CẤU HÌNH (ENVIRONMENT VARIABLES):
+Không ghi cứng (Hardcode) các giá trị nhạy cảm hoặc thay đổi theo môi trường.
+Sử dụng Placeholder trong application.yaml:
+- server.port: ${PORT:8080}
+- spring.datasource.url: ${SPRING_DATASOURCE_URL:...}
+- jwt.signerKey: ${JWT_SIGNER_KEY}
+- URL các service: ${PROFILE_SERVICE_URL:...}
+
+5. LƯU Ý QUAN TRỌNG CHO DEV:
+- Stateless: Không lưu file/ảnh trực tiếp trên server Render (vì sẽ bị xóa khi redeploy). Dùng Cloudinary hoặc S3.
+- Health Check: Cấu hình endpoint /actuator/health để Render kiểm tra trạng thái service.
+- CORS: Cấu hình tại API Gateway để cho phép Frontend từ Vercel truy cập.
