@@ -31,6 +31,10 @@ spring:
           uri: http://localhost:8087
           predicates:
             - Path=/interaction/**
+        - id: search-service
+          uri: http://localhost:8090
+          predicates:
+            - Path=/search/**
         - id: post-service
           uri: http://localhost:8085
           predicates:
@@ -47,7 +51,10 @@ spring:
           uri: http://localhost:8088
           predicates:
             - Path=/realtime/**
-
+        - id: ai-service
+          uri: http://localhost:8089
+          predicates:
+            - Path=/ai/**
 management:
   endpoints:
     web:

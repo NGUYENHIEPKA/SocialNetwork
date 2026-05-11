@@ -40,7 +40,10 @@ public class MediaService {
 
             Map<String, Object> uploadResult = cloudinary
                     .uploader()
-                    .upload(file.getBytes(), ObjectUtils.asMap("folder", folder, "resource_type", "auto", "transformation", "q_auto,f_auto"));
+                    .upload(
+                            file.getBytes(),
+                            ObjectUtils.asMap(
+                                    "folder", folder, "resource_type", "auto", "transformation", "q_auto,f_auto"));
 
             Media media = Media.builder()
                     .mediaUrl((String) uploadResult.get("secure_url"))
@@ -113,6 +116,17 @@ public class MediaService {
         mediaRepository.save(media);
     }
 
+    @Transactional
+    public void assignMediaToConversation(String conversationId, List<String> mediaIds) {
+        if (mediaIds == null || mediaIds.isEmpty()) return;
+
+        List<Media> mediaList = mediaRepository.findAllByIdIn(mediaIds);
+        for (Media media : mediaList) {
+            media.setConversationId(conversationId);
+        }
+        mediaRepository.saveAll(mediaList);
+    }
+
     // ==================== GET MEDIA ====================
     public List<MediaResponse> getByPostId(String postId) {
         return mediaMapper.toResponseList(mediaRepository.findByPostId(postId));
@@ -123,6 +137,10 @@ public class MediaService {
     }
     public List<MediaResponse> getByUserId(String userId) {
         return mediaMapper.toResponseList(mediaRepository.findByUserId(userId));
+    }
+
+    public List<MediaResponse> getByConversationId(String conversationId) {
+        return mediaMapper.toResponseList(mediaRepository.findByConversationId(conversationId));
     }
 
     // ==================== DELETE MEDIA ====================

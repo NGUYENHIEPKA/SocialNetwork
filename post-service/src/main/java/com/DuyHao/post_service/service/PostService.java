@@ -7,6 +7,7 @@ import com.DuyHao.post_service.dto.response.*;
 import com.DuyHao.post_service.entity.Post;
 import com.DuyHao.post_service.mapper.PostMapper;
 import com.DuyHao.post_service.repository.PostRepository;
+import com.DuyHao.post_service.util.TextNormalizer;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
@@ -61,9 +62,7 @@ public class PostService {
 
         postRepository.deleteByRepostOfId(post.getId());
         postRepository.delete(post);
-        CompletableFuture.runAsync(() ->
-                mediaClient.deleteMediaByPostId(postId)
-        );
+        CompletableFuture.runAsync(() -> mediaClient.deleteMediaByPostId(postId));
     }
 
     // ==================== FEED ====================
@@ -143,10 +142,11 @@ public class PostService {
 
     @Transactional
     public PostResponse createRepost(String userId, String originalPostId) {
-        Post original = postRepository.findById(originalPostId)
+        Post original = postRepository
+                .findById(originalPostId)
                 .orElseThrow(() -> new RuntimeException("Original post not found"));
 
-        //Tạo bài vỏ
+        // Tạo bài vỏ
         Post repost = Post.builder()
                 .userId(userId)
                 .repostOf(original)
@@ -209,6 +209,30 @@ public class PostService {
                 .toList();
     }
 
+    // ==================== SEARCH ====================
+    public List<PostResponse> searchPosts(String keyword, String currentUserId, int page, int size) {
+        String normalizedKeyword = TextNormalizer.normalize(keyword);
+
+        // Fetch recent posts then filter in-memory for accent-insensitive matching
+        List<Post> allRecent = postRepository.findAllOriginalPosts(PageRequest.of(0, 1000));
+        List<Post> matched = allRecent.stream()
+                .filter(p -> p.getContent() != null
+                        && TextNormalizer.normalize(p.getContent()).contains(normalizedKeyword))
+                .skip((long) page * size)
+                .limit(size)
+                .toList();
+
+        if (matched.isEmpty()) return List.of();
+
+        Set<String> userIds = matched.stream().map(Post::getUserId).collect(Collectors.toSet());
+        Map<String, UserResponse> userMap = userClient.getUsers(new ArrayList<>(userIds)).stream()
+                .collect(Collectors.toMap(UserResponse::getUserId, u -> u));
+
+        return matched.stream()
+                .map(post -> buildPostResponse(post, currentUserId, userMap))
+                .collect(Collectors.toList());
+    }
+
     // ==================== HELPER ====================
 
     private PostResponse buildPostResponse(Post post, String currentUserId, Map<String, UserResponse> userMap) {
@@ -222,8 +246,11 @@ public class PostService {
             interaction = interactionClient.getInteraction(targetIdForData);
         } catch (Exception e) {
             interaction = InteractionResponse.builder()
-                    .likeCount(0L).commentCount(0L).repostCount(0L)
-                    .likedByCurrentUser(false).repostedByCurrentUser(false)
+                    .likeCount(0L)
+                    .commentCount(0L)
+                    .repostCount(0L)
+                    .likedByCurrentUser(false)
+                    .repostedByCurrentUser(false)
                     .build();
             System.err.println("Lỗi gọi Interaction Service: " + e.getMessage());
         }

@@ -47,6 +47,17 @@ public class InternalMediaController {
     public void assignMediaToComment(@RequestParam String commentId, @RequestBody List<String> mediaIds) {
         mediaService.assignMediaToComment(commentId, mediaIds);
     }
+
+    // ==================== CONVERSATION ====================
+    @GetMapping("/conversation/{conversationId}")
+    public List<MediaResponse> getByConversationId(@PathVariable String conversationId) {
+        return mediaService.getByConversationId(conversationId);
+    }
+
+    @PutMapping("/assign/conversation")
+    public void assignMediaToConversation(@RequestParam String conversationId, @RequestBody List<String> mediaIds) {
+        mediaService.assignMediaToConversation(conversationId, mediaIds);
+    }
     // ==================== USER ====================
     @GetMapping("/user/{userId}")
     public List<MediaResponse> getByUserId(@PathVariable String userId) {

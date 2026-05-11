@@ -40,6 +40,46 @@ public class SocketService {
     public void start() {
         server.addConnectListener(this::onConnect);
         server.addDisconnectListener(this::onDisconnect);
+
+        // Room management
+        server.addEventListener("join_room", String.class, (client, roomId, ackRequest) -> {
+            client.joinRoom(roomId);
+            log.info("Client {} joined room {}", client.getSessionId(), roomId);
+        });
+
+        server.addEventListener("leave_room", String.class, (client, roomId, ackRequest) -> {
+            client.leaveRoom(roomId);
+            log.info("Client {} left room {}", client.getSessionId(), roomId);
+        });
+
+        // WebRTC Signaling
+        server.addEventListener("webrtc_offer", Map.class, (client, data, ackRequest) -> {
+            String toUserId = (String) data.get("toUserId");
+            Object offer = data.get("offer");
+            sendMessage(toUserId, "webrtc_offer", Map.of(
+                    "fromUserId", sessionUserMap.get(client.getSessionId()),
+                    "offer", offer
+            ));
+        });
+
+        server.addEventListener("webrtc_answer", Map.class, (client, data, ackRequest) -> {
+            String toUserId = (String) data.get("toUserId");
+            Object answer = data.get("answer");
+            sendMessage(toUserId, "webrtc_answer", Map.of(
+                    "fromUserId", sessionUserMap.get(client.getSessionId()),
+                    "answer", answer
+            ));
+        });
+
+        server.addEventListener("webrtc_ice_candidate", Map.class, (client, data, ackRequest) -> {
+            String toUserId = (String) data.get("toUserId");
+            Object candidate = data.get("candidate");
+            sendMessage(toUserId, "webrtc_ice_candidate", Map.of(
+                    "fromUserId", sessionUserMap.get(client.getSessionId()),
+                    "candidate", candidate
+            ));
+        });
+
         server.start();
         log.info("Socket.IO server started at {}:{}", server.getConfiguration().getHostname(), server.getConfiguration().getPort());
     }
@@ -105,6 +145,9 @@ public class SocketService {
                     
                     // 3. Broadcast cho mọi người biết user này đã offline hoàn toàn
                     broadcastUserStatus(userId, "OFFLINE");
+
+                    // Notify potential peers about disconnection
+                    server.getBroadcastOperations().sendEvent("peer_disconnected", Map.of("userId", userId));
                 }
             }
             log.info("Client disconnected: userId={}, sessionId={}", userId, sessionId);
@@ -143,5 +186,10 @@ public class SocketService {
         } else {
             log.debug("User {} is offline, message not sent.", toUserId);
         }
+    }
+
+    public void sendToRoom(String roomId, String event, Object data) {
+        server.getRoomOperations(roomId).sendEvent(event, data);
+        log.info("Sent event '{}' to room: {}", event, roomId);
     }
 }

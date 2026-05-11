@@ -1,9 +1,13 @@
 package com.DuyHao.profile_service.controller;
 
+import java.util.List;
+
+import org.springframework.web.bind.annotation.*;
+
 import com.DuyHao.profile_service.dto.request.ProfileCreationRequest;
 import com.DuyHao.profile_service.dto.response.UserProfileResponse;
 import com.DuyHao.profile_service.service.UserProfileRepositoryService;
-import java.util.List;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -35,6 +39,12 @@ public class InternalUserProfileController {
     @PostMapping("/internal/users/batch")
     public List<UserProfileResponse> getUsers(@RequestBody List<String> userIds) {
         return userProfileRepositoryService.getUsers(userIds);
+    }
+
+    @GetMapping("/internal/users/search")
+    public List<UserProfileResponse> searchUsers(@RequestParam("keyword") String keyword) {
+        var profiles = userProfileRepositoryService.searchUsersInternal(keyword);
+        return profiles;
     }
     // Tăng số lượng người theo dõi (Followers)
     @PostMapping("/internal/users/{id}/followers/increment")

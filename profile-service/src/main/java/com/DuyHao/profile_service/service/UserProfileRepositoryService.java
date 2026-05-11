@@ -7,6 +7,8 @@ import com.DuyHao.profile_service.dto.response.UserProfileResponse;
 import com.DuyHao.profile_service.entity.UserProfile;
 import com.DuyHao.profile_service.mapper.UserProfileMapper;
 import com.DuyHao.profile_service.repository.UserProfileRepository;
+import com.DuyHao.profile_service.util.TextNormalizer;
+
 import java.time.LocalDate;
 import java.util.List;
 import lombok.AccessLevel;
@@ -28,6 +30,10 @@ public class UserProfileRepositoryService {
     MediaClient mediaClient;
 
     public UserProfileResponse createProfile(ProfileCreationRequest request) {
+        var existing = userProfileRepository.findByUserId(request.getUserId());
+        if (existing.isPresent()) {
+            return userProfileMapper.toUserProfileResponse(existing.get());
+        }
         UserProfile userProfile = userProfileMapper.toUserProfile(request);
 
         userProfile.setFollowerCount(0L);
@@ -72,7 +78,8 @@ public class UserProfileRepositoryService {
     public UserProfileResponse getProfile(String userId) {
         log.info("UserId : {}", userId);
         UserProfile userProfile = userProfileRepository
-                .findByUserId(userId)
+                .findById(userId)
+                .or(() -> userProfileRepository.findByUserId(userId))
                 .orElseThrow(() -> new RuntimeException("Profile not found!"));
 
         return userProfileMapper.toUserProfileResponse(userProfile);
@@ -122,14 +129,22 @@ public class UserProfileRepositoryService {
         return profiles.stream().map(userProfileMapper::toUserProfileResponse).toList();
     }
 
+    public List<UserProfileResponse> searchUsersInternal(String keyword) {
+        String normalizedKeyword = TextNormalizer.normalize(keyword);
+        return userProfileRepository.findAll().stream()
+                .filter(p -> TextNormalizer.normalize(p.getUsername()).contains(normalizedKeyword)
+                        || TextNormalizer.normalize(p.getFullName()).contains(normalizedKeyword))
+                .map(userProfileMapper::toUserProfileResponse)
+                .toList();
+    }
+
     public List<UserProfileResponse> searchUsers(String keyword) {
-        var context = SecurityContextHolder.getContext();
-
-        String currentUserId = context.getAuthentication().getName();
-
-        var profiles = userProfileRepository.findByUsernameContainingIgnoreCase(keyword);
-        return profiles.stream()
-                .filter(userProfile -> !userProfile.getUserId().equals(currentUserId))
+        String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String normalizedKeyword = TextNormalizer.normalize(keyword);
+        return userProfileRepository.findAll().stream()
+                .filter(p -> !p.getUserId().equals(currentUserId))
+                .filter(p -> TextNormalizer.normalize(p.getUsername()).contains(normalizedKeyword)
+                        || TextNormalizer.normalize(p.getFullName()).contains(normalizedKeyword))
                 .map(userProfileMapper::toUserProfileResponse)
                 .toList();
     }

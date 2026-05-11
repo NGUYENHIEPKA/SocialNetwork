@@ -5,6 +5,7 @@ import { getToken } from '../api/localStorageService';
 import { receiveSocketMessage, markConversationRead, fetchConversations } from '../store/chatSlice';
 import { receiveNotification } from '../store/notificationsSlice';
 import { setOnlineUsers, updateUserStatus } from '../store/onlineUsersSlice';
+import { receiveIncomingCall, setCallInProgress, endCallAction } from '../store/callSlice';
 import messageSound from '../assets/sounds/message-sound.wav';
 import notificationSound from '../assets/sounds/notification-sound.mp3';
 import { toast } from 'sonner';
@@ -40,7 +41,7 @@ export const SocketProvider = ({ children }) => {
     if (socket && socket.connected) return;
 
     // Initialize Socket
-    const newSocket = io("http://localhost:8089", {
+    const newSocket = io("http://localhost:8089", {  //http://localhost:8089
       query: { token },
       transports: ['websocket'], // Force websocket for better performance
       reconnection: true,
@@ -71,19 +72,26 @@ export const SocketProvider = ({ children }) => {
       try {
         // Data is already an object, no need to JSON.parse
 
+        // Add currentUserId to message to help reducer determine isMe
+        const state = store.getState();
+        const currentUserId = state.user.profile?.id || state.user.profile?.userId;
+        const enrichedMessage = {
+          ...message,
+          currentUserId
+        };
+
         // Dispatch to Redux -> Updates MessagePage & Popup
-        dispatch(receiveSocketMessage(message));
+        dispatch(receiveSocketMessage(enrichedMessage));
 
         // Check if conversation exists in Redux Store
-        // If not, fetch conversations to sync (e.g. new conversation started by someone else)
-        const state = store.getState();
         const exists = state.chat.conversations.some(c => c.id === message.conversationId);
         if (!exists) {
           dispatch(fetchConversations());
         }
 
         // Play notification sound if message is incoming (not from me)
-        const isMe = message.me || message.isMe;
+        const senderId = message.sender?.id || message.senderId;
+        const isMe = senderId === currentUserId;
         if (!isMe) {
           const audio = new Audio(messageSound);
           audio.play().catch(e => console.warn("Audio play failed:", e));
@@ -112,6 +120,32 @@ export const SocketProvider = ({ children }) => {
       } catch (error) {
         console.error("Socket notification handling error:", error);
       }
+    });
+
+    // --- Call Listeners ---
+    newSocket.on("incoming_call", (data) => {
+      console.log("Incoming call:", data);
+      dispatch(receiveIncomingCall(data));
+    });
+
+    newSocket.on("call_accepted", (data) => {
+      console.log("Call accepted:", data);
+      dispatch(setCallInProgress(data));
+    });
+
+    newSocket.on("call_rejected", (data) => {
+      console.log("Call rejected:", data);
+      dispatch(endCallAction());
+    });
+
+    newSocket.on("call_cancelled", (data) => {
+      console.log("Call cancelled:", data);
+      dispatch(endCallAction());
+    });
+
+    newSocket.on("call_ended", (data) => {
+      console.log("Call ended:", data);
+      dispatch(endCallAction());
     });
 
     // Save socket instance
