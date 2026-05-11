@@ -8,6 +8,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequiredArgsConstructor
@@ -54,5 +55,11 @@ public class InternalUserProfileController {
     @PostMapping("/internal/users/{id}/following/decrement")
     public void decrementFollowing(@PathVariable("id") String id) {
         userProfileRepositoryService.updateFollowingCount(id, -1);
+    }
+
+    // Lấy top N user có follower cao nhất
+    @GetMapping("/internal/users/top-followers")
+    public List<UserProfileResponse> getTopFollowers(@RequestParam int limit) {
+        return userProfileRepositoryService.getTopFollowers(limit);
     }
 }
