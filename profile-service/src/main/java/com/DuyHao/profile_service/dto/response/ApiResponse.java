@@ -1,4 +1,4 @@
-package com.DuyHao.profile_service.dto;
+package com.DuyHao.profile_service.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;

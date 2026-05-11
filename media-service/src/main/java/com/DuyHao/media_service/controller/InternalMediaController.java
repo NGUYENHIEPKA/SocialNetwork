@@ -58,4 +58,14 @@ public class InternalMediaController {
     public void assignMediaToConversation(@RequestParam String conversationId, @RequestBody List<String> mediaIds) {
         mediaService.assignMediaToConversation(conversationId, mediaIds);
     }
+    // ==================== USER ====================
+    @GetMapping("/user/{userId}")
+    public List<MediaResponse> getByUserId(@PathVariable String userId) {
+        return mediaService.getByUserId(userId);
+    }
+
+    @PutMapping("/assign/user")
+    public void assignMediaToUser(@RequestParam String userId, @RequestParam String mediaId) {
+        mediaService.assignMediaToUser(userId, mediaId);
+    }
 }

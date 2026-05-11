@@ -1,16 +1,14 @@
 package com.DuyHao.profile_service.controller;
 
-import java.util.List;
-
-import org.springframework.web.bind.annotation.*;
-
 import com.DuyHao.profile_service.dto.ApiResponse;
+import com.DuyHao.profile_service.dto.request.ProfileUpdateRequest;
 import com.DuyHao.profile_service.dto.response.UserProfileResponse;
 import com.DuyHao.profile_service.service.UserProfileRepositoryService;
-
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
@@ -42,6 +40,13 @@ public class UserProfileController {
     ApiResponse<UserProfileResponse> getMyInfo() {
         return ApiResponse.<UserProfileResponse>builder()
                 .result(userProfileRepositoryService.getMyInfo())
+                .build();
+    }
+
+    @PutMapping("/myInfo")
+    ApiResponse<UserProfileResponse> updateMyInfo(@RequestBody ProfileUpdateRequest request) {
+        return ApiResponse.<UserProfileResponse>builder()
+                .result(userProfileRepositoryService.updateMyInfo(request))
                 .build();
     }
 }
