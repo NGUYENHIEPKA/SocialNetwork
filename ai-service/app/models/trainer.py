@@ -103,7 +103,7 @@ class StatusModelTrainer:
             output_dir = str(Path(settings.MODEL_SAVE_DIR) / f"checkpoint_{self.training_id}")
             args = TrainingArguments(
                 output_dir=output_dir,
-                overwrite_output_dir=True,
+                # overwrite_output_dir=True,
                 num_train_epochs=_epochs,
                 per_device_train_batch_size=_batch,
                 per_device_eval_batch_size=settings.EVAL_BATCH_SIZE,
@@ -111,9 +111,9 @@ class StatusModelTrainer:
                 warmup_steps=settings.WARMUP_STEPS,
                 weight_decay=settings.WEIGHT_DECAY,
                 gradient_accumulation_steps=settings.GRADIENT_ACCUMULATION_STEPS,
-                evaluation_strategy="epoch",
-                save_strategy="epoch",
-                load_best_model_at_end=True,
+                # evaluation_strategy="epoch",
+                # save_strategy="epoch",
+                # load_best_model_at_end=True,
                 metric_for_best_model="eval_loss",
                 logging_dir=settings.LOGS_DIR,
                 logging_steps=settings.LOGGING_STEPS,
