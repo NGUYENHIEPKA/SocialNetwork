@@ -14,18 +14,21 @@ spring:
       ddl-auto: update
     show-sql: true
   mail:
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    username: ${MAIL_USERNAME:rjack1356@gmail.com}
+    password: ${MAIL_PASSWORD:aeqf nrfq snoc pryj}
     host: "smtp.gmail.com"
-    port: 587
+    port: 465
     properties:
       mail:
         debug: true
         smtp:
           auth: true
-          starttls:
+          ssl:
             enable: true
-            required: true
+          socketFactory:
+            port: 465
+            class: javax.net.ssl.SSLSocketFactory
+            fallback: false
           connectiontimeout: 10000
           timeout: 10000
           writetimeout: 10000
