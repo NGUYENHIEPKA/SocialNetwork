@@ -8,7 +8,6 @@ import com.DuyHao.profile_service.entity.UserProfile;
 import com.DuyHao.profile_service.mapper.UserProfileMapper;
 import com.DuyHao.profile_service.repository.UserProfileRepository;
 import com.DuyHao.profile_service.util.TextNormalizer;
-
 import java.time.LocalDate;
 import java.util.List;
 import lombok.AccessLevel;
@@ -136,7 +135,8 @@ public class UserProfileRepositoryService {
     }
 
     public List<UserProfileResponse> searchUsers(String keyword) {
-        String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUserId =
+                SecurityContextHolder.getContext().getAuthentication().getName();
         String normalizedKeyword = TextNormalizer.normalize(keyword);
         return userProfileRepository.findAll().stream()
                 .filter(p -> !p.getUserId().equals(currentUserId))
@@ -159,8 +159,7 @@ public class UserProfileRepositoryService {
 
     // Lấy top N user có follower cao nhất
     public List<UserProfileResponse> getTopFollowers(int limit) {
-        return userProfileRepository.findTopByFollowerCount(limit)
-                .stream()
+        return userProfileRepository.findTopByFollowerCount(limit).stream()
                 .map(userProfileMapper::toUserProfileResponse)
                 .toList();
     }

@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.DuyHao.follow_service.client.NotificationClient;
 import com.DuyHao.follow_service.client.UserClient;
@@ -12,7 +13,6 @@ import com.DuyHao.follow_service.entity.Follow;
 import com.DuyHao.follow_service.repository.FollowRepository;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -40,7 +40,7 @@ public class FollowService {
         followRepo.save(follow);
 
         // call notification service
-        //notificationClient.createFollowNotification(followingId, followerId);
+        // notificationClient.createFollowNotification(followingId, followerId);
 
         // call user service
         userClient.incrementFollowers(followingId);
@@ -82,8 +82,7 @@ public class FollowService {
 
     public FollowResponse getFollowStatus(String currentUserId, String targetUserId) {
         boolean isFollowing = followRepo.existsByFollowerIdAndFollowingId(currentUserId, targetUserId);
-        boolean isFriend = isFollowing
-                && followRepo.existsByFollowerIdAndFollowingId(targetUserId, currentUserId);
+        boolean isFriend = isFollowing && followRepo.existsByFollowerIdAndFollowingId(targetUserId, currentUserId);
 
         return FollowResponse.builder()
                 .success(true)
