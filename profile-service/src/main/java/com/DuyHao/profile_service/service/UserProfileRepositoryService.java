@@ -8,7 +8,6 @@ import com.DuyHao.profile_service.entity.UserProfile;
 import com.DuyHao.profile_service.mapper.UserProfileMapper;
 import com.DuyHao.profile_service.repository.UserProfileRepository;
 import com.DuyHao.profile_service.util.TextNormalizer;
-
 import java.time.LocalDate;
 import java.util.List;
 import lombok.AccessLevel;
@@ -56,6 +55,9 @@ public class UserProfileRepositoryService {
         }
         if (userProfile.getSpotifyLink() == null) {
             userProfile.setSpotifyLink("");
+        }
+        if (userProfile.getConnectionsPrivacy() == null) {
+            userProfile.setConnectionsPrivacy("EVERYONE");
         }
         userProfile = userProfileRepository.save(userProfile);
 
@@ -107,6 +109,10 @@ public class UserProfileRepositoryService {
         if (request.getCity() != null) userProfile.setCity(request.getCity());
         if (request.getBio() != null) userProfile.setBio(request.getBio());
         if (request.getSpotifyLink() != null) userProfile.setSpotifyLink(request.getSpotifyLink());
+        if (request.getConnectionsPrivacy() != null
+                && List.of("EVERYONE", "FRIENDS_ONLY", "ONLY_ME").contains(request.getConnectionsPrivacy())) {
+            userProfile.setConnectionsPrivacy(request.getConnectionsPrivacy());
+        }
         if (request.getMediaId() != null && !request.getMediaId().isBlank()) {
             mediaClient.assignMediaToUser(userId, request.getMediaId());
             var userMedias = mediaClient.getByUserId(userId);
@@ -136,7 +142,8 @@ public class UserProfileRepositoryService {
     }
 
     public List<UserProfileResponse> searchUsers(String keyword) {
-        String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+        String currentUserId =
+                SecurityContextHolder.getContext().getAuthentication().getName();
         String normalizedKeyword = TextNormalizer.normalize(keyword);
         return userProfileRepository.findAll().stream()
                 .filter(p -> !p.getUserId().equals(currentUserId))
@@ -159,8 +166,7 @@ public class UserProfileRepositoryService {
 
     // Lấy top N user có follower cao nhất
     public List<UserProfileResponse> getTopFollowers(int limit) {
-        return userProfileRepository.findTopByFollowerCount(limit)
-                .stream()
+        return userProfileRepository.findTopByFollowerCount(limit).stream()
                 .map(userProfileMapper::toUserProfileResponse)
                 .toList();
     }

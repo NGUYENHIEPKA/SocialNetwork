@@ -281,23 +281,55 @@ export function ProfilePage() {
         </div>
 
         {/* Stats followers / following */}
-        <div className="flex items-center gap-2 mb-3">
-          <button className="flex-1 flex items-center justify-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-accent transition-colors">
-            <Users className="w-6 h-6 text-muted-foreground shrink-0" />
-            <div className="flex flex-col items-center">
-              <span className="text-xl font-bold tracking-tight leading-none">{formatNumber(user?.followers)}</span>
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-0.5">Followers</span>
-            </div>
-          </button>
+        {(() => {
+          const privacy = isOwnProfile
+            ? "EVERYONE"
+            : (otherProfile?.connectionsPrivacy ?? "EVERYONE");
+          const canView = isOwnProfile
+            || privacy === "EVERYONE"
+            || (privacy === "FRIENDS_ONLY" && isFriend);
 
-          <button className="flex-1 flex items-center justify-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-accent transition-colors">
-            <UserCheck className="w-6 h-6 text-muted-foreground shrink-0" />
-            <div className="flex flex-col items-center">
-              <span className="text-xl font-bold tracking-tight leading-none">{formatNumber(user?.following)}</span>
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-0.5">Following</span>
+          const handleFollowersClick = () => {
+            if (!canView) {
+              toast.error("This list is hidden due to this user's privacy settings.");
+              return;
+            }
+            navigate(`/connections/@${user?.username}?tab=followers`);
+          };
+          const handleFollowingClick = () => {
+            if (!canView) {
+              toast.error("This list is hidden due to this user's privacy settings.");
+              return;
+            }
+            navigate(`/connections/@${user?.username}?tab=following`);
+          };
+
+          return (
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                className="flex-1 flex items-center justify-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-accent transition-colors cursor-pointer"
+                onClick={handleFollowersClick}
+              >
+                <Users className="w-6 h-6 text-muted-foreground shrink-0" />
+                <div className="flex flex-col items-center">
+                  <span className="text-xl font-bold tracking-tight leading-none">{formatNumber(user?.followers)}</span>
+                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-0.5">Followers</span>
+                </div>
+              </button>
+
+              <button
+                className="flex-1 flex items-center justify-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-accent transition-colors cursor-pointer"
+                onClick={handleFollowingClick}
+              >
+                <UserCheck className="w-6 h-6 text-muted-foreground shrink-0" />
+                <div className="flex flex-col items-center">
+                  <span className="text-xl font-bold tracking-tight leading-none">{formatNumber(user?.following)}</span>
+                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-0.5">Following</span>
+                </div>
+              </button>
             </div>
-          </button>
-        </div>
+          );
+        })()}
         <SpotifyView url={isOwnProfile ? profile.spotifyLink : otherProfile?.spotifyLink} />
 
         {/* Nút action: nếu là mình -> Edit/Share, nếu là người khác -> Follow/Friends/... */}

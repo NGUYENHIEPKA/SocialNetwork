@@ -29,6 +29,7 @@ export function EditProfileDialog({ open, onOpenChange }) {
   const [city, setCity] = useState("");
   const [dob, setDob] = useState("");
   const [spotifyLink, setSpotifyLink] = useState("");
+  const [connectionsPrivacy, setConnectionsPrivacy] = useState("EVERYONE");
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -43,6 +44,7 @@ export function EditProfileDialog({ open, onOpenChange }) {
     setBio(profile.bio ?? "");
     setCity(profile.city ?? "");
     setSpotifyLink(profile.spotifyLink ?? "");
+    setConnectionsPrivacy(profile.connectionsPrivacy ?? "EVERYONE");
     if (profile.dob) {
       const [day, month, year] = profile.dob.split("-");
       setDob(`${year}-${month}-${day}`);
@@ -94,7 +96,7 @@ export function EditProfileDialog({ open, onOpenChange }) {
         formattedDob = `${day}-${month}-${year}`;
       }
 
-      await userApi.editProfile({ fullName, bio, city, dob: formattedDob, mediaId, spotifyLink });
+      await userApi.editProfile({ fullName, bio, city, dob: formattedDob, mediaId, spotifyLink, connectionsPrivacy });
       toast.success("Profile updated successfully");
       dispatch(fetchMyInfo());
       dispatch(fetchMyPosts());
@@ -213,6 +215,25 @@ export function EditProfileDialog({ open, onOpenChange }) {
           <div className="space-y-1">
             <label className="text-sm font-medium text-zinc-400">Bio</label>
             <Textarea rows={3} value={bio} onChange={(e) => setBio(e.target.value)} className="bg-zinc-900 border-zinc-800 focus:ring-1 focus:ring-zinc-700 resize-none" />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-zinc-400">Connections Privacy</label>
+            <Select value={connectionsPrivacy} onValueChange={setConnectionsPrivacy}>
+              <SelectTrigger className="bg-zinc-900 border-zinc-800 h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+                <SelectItem value="EVERYONE">Everyone</SelectItem>
+                <SelectItem value="FRIENDS_ONLY">Friends only</SelectItem>
+                <SelectItem value="ONLY_ME">Only me</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-zinc-500">
+              {connectionsPrivacy === "EVERYONE" && "Anyone can see your followers and following."}
+              {connectionsPrivacy === "FRIENDS_ONLY" && "Only mutual friends can see your followers and following."}
+              {connectionsPrivacy === "ONLY_ME" && "Only you can see your followers and following."}
+            </p>
           </div>
 
           <Button type="submit" disabled={submitting} className="w-full bg-white text-black hover:bg-zinc-200 font-bold h-10">
