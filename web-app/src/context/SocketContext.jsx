@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
-import { getToken } from '../api/localStorageService';
+import { getAccessToken } from '../api/localStorageService';
 import { receiveSocketMessage, markConversationRead, fetchConversations } from '../store/chatSlice';
 import { receiveNotification } from '../store/notificationsSlice';
 import { setOnlineUsers, updateUserStatus } from '../store/onlineUsersSlice';
@@ -26,7 +26,7 @@ export const SocketProvider = ({ children }) => {
   // For now, the global listener just updates the data.
 
   useEffect(() => {
-    const token = getToken();
+    const token = getAccessToken();
 
     // Only connect if we have a token (user logged in)
     if (!token) {
