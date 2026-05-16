@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Phone, Video, Camera, Info, Smile, Mic, Image, Heart, Send, X } from "lucide-react";
+import { Phone, Video, Camera, Info, Smile, Mic, Image, Heart, Send, X, RotateCcw } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { messageApi } from "../../../api/messageApi";
 import mediaApi from "../../../api/mediaApi";
@@ -11,12 +11,15 @@ import { Search } from "lucide-react";
 import { UserAvatar } from "../../../components/ui/user-avatar";
 import { useSelector, useDispatch } from "react-redux";
 import { startOutgoingCall } from "../../../store/callSlice";
+import { receiveRevokeMessage } from "../../../store/chatSlice";
+import { useSocket } from "../../../context/SocketContext";
 import { ConversationDetails } from "./ConversationDetails";
 import { ImageViewer } from "../../../components/ImageViewer/ImageViewer";
 
-export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage }) {
+export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage, revokedMessage }) {
   const { profile } = useSelector(state => state.user);
   const dispatch = useDispatch();
+  const socket = useSocket();
   const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [messageInput, setMessageInput] = useState("");
@@ -55,7 +58,7 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Handle incoming real-time message
+  // Handle incoming real-time message (New Message)
   useEffect(() => {
     if (incomingMessage && conversation && incomingMessage.conversationId === conversation.id) {
       setMessages((prev) => {
@@ -70,6 +73,28 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
       });
     }
   }, [incomingMessage, conversation, profile]);
+
+  // Handle incoming real-time message (Revoke Message)
+  useEffect(() => {
+    if (revokedMessage && conversation && revokedMessage.conversationId === conversation.id) {
+      setMessages((prev) => prev.map(m => m.id === revokedMessage.id ? { ...m, isRevoked: true } : m));
+    }
+  }, [revokedMessage, conversation]);
+
+  const handleRevokeMessage = async (messageId) => {
+    try {
+      const res = await messageApi.revokeMessage(messageId);
+      const data = res.data || res;
+      if (data.code === 1000) {
+        // Optimistic update locally
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, isRevoked: true } : m));
+        // Update Redux (this will update sidebar)
+        dispatch(receiveRevokeMessage(data.result));
+      }
+    } catch (error) {
+      console.error("Failed to revoke message:", error);
+    }
+  };
 
   // EMOJI: Close when clicking outside
   useEffect(() => {
@@ -301,51 +326,71 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                       </p>
                     )}
 
-                    {msg.content && !msg.content.startsWith("📞 Cuộc gọi") && (
-                      <div
-                        title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
-                        className={`px-4 py-2 rounded-2xl break-words ${msg.media && msg.media.length > 0 ? "mb-2" : ""} ${msg.isMe ? "bg-[#0095f6] text-white" : "bg-[#262626] text-white"}`}
-                      >
-                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    {msg.isRevoked ? (
+                      <div className="px-4 py-2 rounded-2xl bg-[#1a1a1a] border border-[#333] text-gray-500 italic text-sm">
+                        Tin nhắn đã bị thu hồi
                       </div>
-                    )}
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 group">
+                          {msg.isMe && !msg.content?.startsWith("📞 Cuộc gọi") && (
+                            <button 
+                              onClick={() => handleRevokeMessage(msg.id)}
+                              className="p-1.5 bg-[#1a1a1a] rounded-full text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500"
+                              title="Thu hồi"
+                            >
+                              <RotateCcw size={14} />
+                            </button>
+                          )}
 
-                    {msg.content && msg.content.startsWith("📞 Cuộc gọi") && (
-                      <div
-                        title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
-                        onClick={() => handleInitiateCall(msg.content.includes("Video") ? 'VIDEO' : 'AUDIO')}
-                        className={`px-4 py-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity ${msg.media && msg.media.length > 0 ? "mb-2" : ""} ${msg.isMe ? "bg-[#262626] text-white" : "bg-[#1a1a1a] border border-[#333] text-white"}`}
-                      >
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${msg.content.includes("nhỡ") || msg.content.includes("từ chối") ? 'bg-red-500/20 text-red-500' : 'bg-gray-700 text-white'}`}>
-                            {msg.content.includes("Video") ? <Video size={20} /> : <Phone size={20} />}
+                          {msg.content && !msg.content.startsWith("📞 Cuộc gọi") && (
+                            <div
+                              title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
+                              className={`px-4 py-2 rounded-2xl break-words ${msg.media && msg.media.length > 0 ? "mb-2" : ""} ${msg.isMe ? "bg-[#0095f6] text-white" : "bg-[#262626] text-white"}`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            </div>
+                          )}
                         </div>
-                        <div className="flex flex-col">
-                            <p className="text-sm font-medium">{msg.content.replace("📞 ", "")}</p>
-                            <span className="text-xs text-gray-400 mt-0.5">Nhấn để gọi lại</span>
-                        </div>
-                      </div>
-                    )}
 
-                    {msg.media && msg.media.length > 0 && (
-                      <div
-                        className={`grid gap-2 ${msg.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
-                        title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
-                      >
-                        {msg.media.map((m, idx) => (
-                          <div key={idx} className="rounded-2xl overflow-hidden border border-[#333]">
-                            {m.type === 'image' ? (
-                              <img
-                                src={m.url}
-                                alt=""
-                                className="max-w-64 h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity block"
-                                onClick={() => handleOpenViewer(msg.media, idx)}
-                              />
-                            ) : (
-                              <video src={m.url} controls className="max-w-64 h-auto block" />
-                            )}
+                        {msg.content && msg.content.startsWith("📞 Cuộc gọi") && (
+                          <div
+                            title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
+                            onClick={() => handleInitiateCall(msg.content.includes("Video") ? 'VIDEO' : 'AUDIO')}
+                            className={`px-4 py-3 rounded-2xl flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity ${msg.media && msg.media.length > 0 ? "mb-2" : ""} ${msg.isMe ? "bg-[#262626] text-white" : "bg-[#1a1a1a] border border-[#333] text-white"}`}
+                          >
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${msg.content.includes("nhỡ") || msg.content.includes("từ chối") ? 'bg-red-500/20 text-red-500' : 'bg-gray-700 text-white'}`}>
+                                {msg.content.includes("Video") ? <Video size={20} /> : <Phone size={20} />}
+                            </div>
+                            <div className="flex flex-col">
+                                <p className="text-sm font-medium">{msg.content.replace("📞 ", "")}</p>
+                                <span className="text-xs text-gray-400 mt-0.5">Nhấn để gọi lại</span>
+                            </div>
                           </div>
-                        ))}
-                      </div>
+                        )}
+
+                        {msg.media && msg.media.length > 0 && (
+                          <div
+                            className={`grid gap-2 ${msg.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
+                            title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
+                          >
+                            {msg.media.map((m, idx) => (
+                              <div key={idx} className="rounded-2xl overflow-hidden border border-[#333]">
+                                {m.type === 'image' ? (
+                                  <img
+                                    src={m.url}
+                                    alt=""
+                                    className="max-w-64 h-auto object-cover cursor-pointer hover:opacity-90 transition-opacity block"
+                                    onClick={() => handleOpenViewer(msg.media, idx)}
+                                  />
+                                ) : (
+                                  <video src={m.url} controls className="max-w-64 h-auto block" />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

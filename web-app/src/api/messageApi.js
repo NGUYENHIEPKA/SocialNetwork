@@ -59,6 +59,11 @@ export const messageApi = {
         return axiosClient.delete(url);
     },
 
+    revokeMessage(messageId) {
+        const url = `chat/messages/revoke/${messageId}`;
+        return axiosClient.put(url);
+    },
+
     // Call APIs
     initiateCall({ calleeId, conversationId, type }) {
         const url = "chat/calls/initiate";

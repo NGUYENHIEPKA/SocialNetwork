@@ -31,4 +31,11 @@ public class MessageController {
                 .result(messageService.getMessages(conversationId))
                 .build();
     }
+
+    @PutMapping("/revoke/{messageId}")
+    ApiResponse<MessageResponse> revoke(@PathVariable String messageId) {
+        return ApiResponse.<MessageResponse>builder()
+                .result(messageService.revokeMessage(messageId))
+                .build();
+    }
 }

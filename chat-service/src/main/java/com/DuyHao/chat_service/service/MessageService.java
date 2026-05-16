@@ -116,6 +116,53 @@ public class MessageService {
         return response;
     }
 
+    public MessageResponse revokeMessage(String messageId) {
+        String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("Message not found"));
+
+        // Check ownership
+        if (!message.getSenderId().equals(currentUserId)) {
+            throw new RuntimeException("Access denied: You can only revoke your own messages");
+        }
+
+        // Prevent revoking call logs
+        if (message.getContent() != null && message.getContent().startsWith("📞 Cuộc gọi")) {
+            throw new RuntimeException("Cannot revoke call log messages");
+        }
+
+        if (message.isRevoked()) {
+            return toMessageResponse(message, currentUserId);
+        }
+
+        // Update message
+        message.setRevoked(true);
+        message = messageRepository.save(message);
+
+        // Update conversation last message if necessary
+        Conversation conversation = conversationRepository.findById(message.getConversationId())
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        // Simplistic check: if this was the last message, update conversation display
+        if (message.getContent() != null && message.getContent().equals(conversation.getLastMessageContent())) {
+            conversation.setLastMessageContent("Tin nhắn đã bị thu hồi");
+            conversationRepository.save(conversation);
+        }
+
+        MessageResponse response = toMessageResponse(message, currentUserId);
+
+        // Push realtime event
+        RealtimeMessage rtMessage = RealtimeMessage.builder()
+                .toRoomId(message.getConversationId())
+                .type("message_revoked")
+                .payload(response)
+                .build();
+        redisPublisherService.publish(rtMessage);
+
+        return response;
+    }
+
     private MessageResponse toMessageResponse(Message message, String currentUserId) {
         MessageResponse response = MessageResponse.builder()
                 .id(message.getId())
@@ -124,6 +171,7 @@ public class MessageService {
                 .media(message.getMedia())
                 .createdAt(message.getCreatedAt())
                 .isMe(message.getSenderId().equals(currentUserId))
+                .isRevoked(message.isRevoked())
                 .build();
 
         try {

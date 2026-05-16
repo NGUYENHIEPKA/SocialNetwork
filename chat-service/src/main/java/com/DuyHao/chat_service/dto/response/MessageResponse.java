@@ -19,6 +19,7 @@ public class MessageResponse {
     List<MediaInfo> media;
     LocalDateTime createdAt;
     boolean isMe;
+    boolean isRevoked;
     SenderInfo sender;
 
     @Data

@@ -27,5 +27,8 @@ public class Message {
     String content;
     List<MediaInfo> media;
 
+    @Builder.Default
+    boolean isRevoked = false;
+
     LocalDateTime createdAt;
 }

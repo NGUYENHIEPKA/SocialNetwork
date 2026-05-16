@@ -46,6 +46,7 @@ const chatSlice = createSlice({
     error: null,
     selectedConversationId: null,
     latestMessage: null, // Track the newest incoming message object
+    latestRevokedMessage: null, // Track the newest revoked message object
   },
   reducers: {
     // Action to handle incoming socket message
@@ -77,6 +78,21 @@ const chatSlice = createSlice({
         // If conversation doesn't exist (new conversation started by someone else), 
         // we might need to fetch it or construct it. For now, we ignore or fetch all again.
         // Ideally: fetchConversations() could be triggered.
+      }
+    },
+
+    receiveRevokeMessage: (state, action) => {
+      const revokedMsg = action.payload;
+      state.latestRevokedMessage = revokedMsg;
+
+      const index = state.conversations.findIndex(c => c.id === revokedMsg.conversationId);
+      if (index !== -1) {
+          const conversation = state.conversations[index];
+          // Update last message display if it was revoked
+          state.conversations[index] = {
+              ...conversation,
+              lastMessage: "Tin nhắn đã bị thu hồi"
+          };
       }
     },
     
@@ -126,5 +142,5 @@ const chatSlice = createSlice({
   },
 });
 
-export const { receiveSocketMessage, setConversationReadLocal, addNewConversation } = chatSlice.actions;
+export const { receiveSocketMessage, receiveRevokeMessage, setConversationReadLocal, addNewConversation } = chatSlice.actions;
 export default chatSlice.reducer;

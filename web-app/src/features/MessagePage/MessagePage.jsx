@@ -11,7 +11,7 @@ import { useSocket } from "../../context/SocketContext";
 export function MessagesPage({ onBack }) {
   const dispatch = useDispatch();
   const socket = useSocket();
-  const { conversations, loading: conversationsLoading, latestMessage } = useSelector(state => state.chat);
+  const { conversations, loading: conversationsLoading, latestMessage, latestRevokedMessage } = useSelector(state => state.chat);
   
   const [selectedConversation, setSelectedConversation] = useState(null);
   
@@ -173,6 +173,7 @@ export function MessagesPage({ onBack }) {
         conversation={selectedConversation}
         onSendMessageSuccess={handleSendMessageSuccess}
         incomingMessage={latestMessage} 
+        revokedMessage={latestRevokedMessage}
       />
     </div>
   );

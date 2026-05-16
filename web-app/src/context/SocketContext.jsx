@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
 import { getAccessToken } from '../api/localStorageService';
-import { receiveSocketMessage, markConversationRead, fetchConversations } from '../store/chatSlice';
+import { receiveSocketMessage, receiveRevokeMessage, markConversationRead, fetchConversations } from '../store/chatSlice';
 import { receiveNotification } from '../store/notificationsSlice';
 import { setOnlineUsers, updateUserStatus } from '../store/onlineUsersSlice';
 import { receiveIncomingCall, setCallInProgress, endCallAction } from '../store/callSlice';
@@ -98,6 +98,16 @@ export const SocketProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Socket message handling error:", error);
+      }
+    });
+
+    // Global Message Revoke Listener
+    newSocket.on("message_revoked", (data) => {
+      try {
+        console.log("Message revoked:", data);
+        dispatch(receiveRevokeMessage(data));
+      } catch (error) {
+        console.error("Socket message_revoked handling error:", error);
       }
     });
 
