@@ -20,6 +20,7 @@ public class MessageResponse {
     LocalDateTime createdAt;
     boolean isMe;
     boolean isRevoked;
+    boolean isEdited;
     SenderInfo sender;
 
     @Data

@@ -64,6 +64,11 @@ export const messageApi = {
         return axiosClient.put(url);
     },
 
+    editMessage({ messageId, content }) {
+        const url = `chat/messages/edit/${messageId}`;
+        return axiosClient.put(url, { content });
+    },
+
     // Call APIs
     initiateCall({ calleeId, conversationId, type }) {
         const url = "chat/calls/initiate";

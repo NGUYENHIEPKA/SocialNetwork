@@ -38,4 +38,11 @@ public class MessageController {
                 .result(messageService.revokeMessage(messageId))
                 .build();
     }
+
+    @PutMapping("/edit/{messageId}")
+    ApiResponse<MessageResponse> edit(@PathVariable String messageId, @RequestBody MessageRequest request) {
+        return ApiResponse.<MessageResponse>builder()
+                .result(messageService.editMessage(messageId, request.getContent()))
+                .build();
+    }
 }

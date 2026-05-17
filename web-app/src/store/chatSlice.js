@@ -47,6 +47,7 @@ const chatSlice = createSlice({
     selectedConversationId: null,
     latestMessage: null, // Track the newest incoming message object
     latestRevokedMessage: null, // Track the newest revoked message object
+    latestEditedMessage: null, // Track the newest edited message object
   },
   reducers: {
     // Action to handle incoming socket message
@@ -92,6 +93,20 @@ const chatSlice = createSlice({
           state.conversations[index] = {
               ...conversation,
               lastMessage: "Tin nhắn đã bị thu hồi"
+          };
+      }
+    },
+
+    receiveEditMessage: (state, action) => {
+      const editedMsg = action.payload;
+      state.latestEditedMessage = editedMsg;
+
+      const index = state.conversations.findIndex(c => c.id === editedMsg.conversationId);
+      if (index !== -1) {
+          const conversation = state.conversations[index];
+          state.conversations[index] = {
+              ...conversation,
+              lastMessage: editedMsg.content
           };
       }
     },
@@ -142,5 +157,5 @@ const chatSlice = createSlice({
   },
 });
 
-export const { receiveSocketMessage, receiveRevokeMessage, setConversationReadLocal, addNewConversation } = chatSlice.actions;
+export const { receiveSocketMessage, receiveRevokeMessage, receiveEditMessage, setConversationReadLocal, addNewConversation } = chatSlice.actions;
 export default chatSlice.reducer;

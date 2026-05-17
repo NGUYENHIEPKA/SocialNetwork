@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Phone, Video, Camera, Info, Smile, Mic, Image, Heart, Send, X, RotateCcw } from "lucide-react";
+import { Phone, Video, Camera, Info, Smile, Mic, Image, Heart, Send, X, RotateCcw, Pencil } from "lucide-react";
 import EmojiPicker from "emoji-picker-react";
 import { messageApi } from "../../../api/messageApi";
 import mediaApi from "../../../api/mediaApi";
@@ -11,12 +11,12 @@ import { Search } from "lucide-react";
 import { UserAvatar } from "../../../components/ui/user-avatar";
 import { useSelector, useDispatch } from "react-redux";
 import { startOutgoingCall } from "../../../store/callSlice";
-import { receiveRevokeMessage } from "../../../store/chatSlice";
+import { receiveRevokeMessage, receiveEditMessage } from "../../../store/chatSlice";
 import { useSocket } from "../../../context/SocketContext";
 import { ConversationDetails } from "./ConversationDetails";
 import { ImageViewer } from "../../../components/ImageViewer/ImageViewer";
 
-export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage, revokedMessage }) {
+export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage, revokedMessage, editedMessage }) {
   const { profile } = useSelector(state => state.user);
   const dispatch = useDispatch();
   const socket = useSocket();
@@ -25,6 +25,7 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
   const [messageInput, setMessageInput] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
@@ -81,6 +82,13 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
     }
   }, [revokedMessage, conversation]);
 
+  // Handle incoming real-time message (Edit Message)
+  useEffect(() => {
+    if (editedMessage && conversation && editedMessage.conversationId === conversation.id) {
+      setMessages((prev) => prev.map(m => m.id === editedMessage.id ? { ...m, content: editedMessage.content, isEdited: true } : m));
+    }
+  }, [editedMessage, conversation]);
+
   const handleRevokeMessage = async (messageId) => {
     try {
       const res = await messageApi.revokeMessage(messageId);
@@ -94,6 +102,17 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
     } catch (error) {
       console.error("Failed to revoke message:", error);
     }
+  };
+
+  const handleStartEdit = (msg) => {
+    setEditingMessageId(msg.id);
+    setMessageInput(msg.content);
+    setEmojiOpen(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setMessageInput("");
   };
 
   // EMOJI: Close when clicking outside
@@ -195,6 +214,21 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
     const content = messageInput.trim();
     if (!content && selectedFiles.length === 0) return;
     if (!conversation?.id) return;
+
+    if (editingMessageId) {
+      try {
+        const res = await messageApi.editMessage({ messageId: editingMessageId, content });
+        const data = res.data || res;
+        if (data.code === 1000) {
+          setMessages(prev => prev.map(m => m.id === editingMessageId ? { ...m, content, isEdited: true } : m));
+          dispatch(receiveEditMessage(data.result));
+          handleCancelEdit();
+        }
+      } catch (error) {
+        console.error("Failed to edit message:", error);
+      }
+      return;
+    }
 
     try {
       setIsUploading(true);
@@ -334,21 +368,36 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                       <>
                         <div className="flex items-center gap-2 group">
                           {msg.isMe && !msg.content?.startsWith("📞 Cuộc gọi") && (
-                            <button 
-                              onClick={() => handleRevokeMessage(msg.id)}
-                              className="p-1.5 bg-[#1a1a1a] rounded-full text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500"
-                              title="Thu hồi"
-                            >
-                              <RotateCcw size={14} />
-                            </button>
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {/* Chỉ hiện nút sửa cho tin nhắn cuối cùng của mình */}
+                              {messages.filter(m => m.isMe && !m.isRevoked && !m.content?.startsWith("📞")).pop()?.id === msg.id && (
+                                <button 
+                                  onClick={() => handleStartEdit(msg)}
+                                  className="p-1.5 bg-[#1a1a1a] rounded-full text-gray-400 hover:text-blue-500"
+                                  title="Sửa"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleRevokeMessage(msg.id)}
+                                className="p-1.5 bg-[#1a1a1a] rounded-full text-gray-400 hover:text-red-500"
+                                title="Thu hồi"
+                              >
+                                <RotateCcw size={14} />
+                              </button>
+                            </div>
                           )}
 
                           {msg.content && !msg.content.startsWith("📞 Cuộc gọi") && (
                             <div
                               title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
-                              className={`px-4 py-2 rounded-2xl break-words ${msg.media && msg.media.length > 0 ? "mb-2" : ""} ${msg.isMe ? "bg-[#0095f6] text-white" : "bg-[#262626] text-white"}`}
+                              className={`px-4 py-2 rounded-2xl break-words relative ${msg.media && msg.media.length > 0 ? "mb-2" : ""} ${msg.isMe ? "bg-[#0095f6] text-white" : "bg-[#262626] text-white"}`}
                             >
                               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                              {msg.isEdited && (
+                                <span className="text-[9px] opacity-60 block mt-1">(đã chỉnh sửa)</span>
+                              )}
                             </div>
                           )}
                         </div>
@@ -407,6 +456,17 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
 
         {/* Message Input */}
         <div className="p-4 border-t border-[#333]">
+          {editingMessageId && (
+            <div className="flex items-center justify-between bg-[#1a1a1a] px-4 py-2 mb-2 rounded-lg border-l-4 border-blue-500">
+              <div className="flex items-center gap-2 text-xs text-gray-400">
+                <Pencil size={12} />
+                <span>Đang chỉnh sửa tin nhắn...</span>
+              </div>
+              <button onClick={handleCancelEdit} className="text-gray-400 hover:text-white">
+                <X size={14} />
+              </button>
+            </div>
+          )}
           {selectedFiles.length > 0 && (
             <div className="flex flex-wrap gap-2 mb-3">
               {selectedFiles.map((file, idx) => (

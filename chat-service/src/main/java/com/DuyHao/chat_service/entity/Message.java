@@ -30,5 +30,8 @@ public class Message {
     @Builder.Default
     boolean isRevoked = false;
 
+    @Builder.Default
+    boolean isEdited = false;
+
     LocalDateTime createdAt;
 }
