@@ -48,6 +48,7 @@ const chatSlice = createSlice({
     latestMessage: null, // Track the newest incoming message object
     latestRevokedMessage: null, // Track the newest revoked message object
     latestEditedMessage: null, // Track the newest edited message object
+    latestReactionUpdate: null, // Track the newest reaction update object
   },
   reducers: {
     // Action to handle incoming socket message
@@ -110,6 +111,10 @@ const chatSlice = createSlice({
           };
       }
     },
+
+    receiveReactionUpdate: (state, action) => {
+      state.latestReactionUpdate = action.payload;
+    },
     
     // Action when user selects a conversation (to clear unread locally immediately)
     setConversationReadLocal: (state, action) => {
@@ -157,5 +162,5 @@ const chatSlice = createSlice({
   },
 });
 
-export const { receiveSocketMessage, receiveRevokeMessage, receiveEditMessage, setConversationReadLocal, addNewConversation } = chatSlice.actions;
+export const { receiveSocketMessage, receiveRevokeMessage, receiveEditMessage, receiveReactionUpdate, setConversationReadLocal, addNewConversation } = chatSlice.actions;
 export default chatSlice.reducer;

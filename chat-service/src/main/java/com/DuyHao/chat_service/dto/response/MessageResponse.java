@@ -21,6 +21,7 @@ public class MessageResponse {
     boolean isMe;
     boolean isRevoked;
     boolean isEdited;
+    java.util.Map<String, String> reactions;
     SenderInfo sender;
 
     @Data

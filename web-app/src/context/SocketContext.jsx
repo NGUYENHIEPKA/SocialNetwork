@@ -121,6 +121,16 @@ export const SocketProvider = ({ children }) => {
       }
     });
 
+    // Global Message Reaction Listener
+    newSocket.on("message_reaction_updated", (data) => {
+      try {
+        console.log("Message reaction updated:", data);
+        dispatch(receiveReactionUpdate(data));
+      } catch (error) {
+        console.error("Socket message_reaction_updated handling error:", error);
+      }
+    });
+
     // Global Notification Listener
     newSocket.on("new_notification", (notification) => {
       try {

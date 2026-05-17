@@ -69,6 +69,11 @@ export const messageApi = {
         return axiosClient.put(url, { content });
     },
 
+    reactToMessage({ messageId, emoji }) {
+        const url = `chat/messages/${messageId}/react?emoji=${encodeURIComponent(emoji)}`;
+        return axiosClient.post(url);
+    },
+
     // Call APIs
     initiateCall({ calleeId, conversationId, type }) {
         const url = "chat/calls/initiate";

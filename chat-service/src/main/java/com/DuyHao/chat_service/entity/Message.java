@@ -33,5 +33,8 @@ public class Message {
     @Builder.Default
     boolean isEdited = false;
 
+    @Builder.Default
+    java.util.Map<String, String> reactions = new java.util.HashMap<>();
+
     LocalDateTime createdAt;
 }

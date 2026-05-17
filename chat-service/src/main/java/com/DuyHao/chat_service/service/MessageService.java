@@ -184,7 +184,7 @@ public class MessageService {
 
         // "Most recent message" logic: Find the absolute latest message by this user in this conversation
         Message latestMsg = messageRepository.findFirstByConversationIdAndSenderIdOrderByCreatedAtDesc(
-                message.getConversationId(), currentUserId)
+                        message.getConversationId(), currentUserId)
                 .orElseThrow(() -> new RuntimeException("Latest message not found"));
 
         if (!latestMsg.getId().equals(messageId)) {
@@ -199,10 +199,10 @@ public class MessageService {
         // Update conversation display
         Conversation conversation = conversationRepository.findById(message.getConversationId())
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
-        
+
         // If it was the last message of the conversation, update sidebar preview
-        if (message.getCreatedAt().equals(conversation.getLastMessageTimestamp()) || 
-            message.getContent().equals(conversation.getLastMessageContent())) {
+        if (message.getCreatedAt().equals(conversation.getLastMessageTimestamp()) ||
+                message.getContent().equals(conversation.getLastMessageContent())) {
             conversation.setLastMessageContent(newContent);
             conversationRepository.save(conversation);
         }
@@ -220,6 +220,47 @@ public class MessageService {
         return response;
     }
 
+    public MessageResponse reactToMessage(String messageId, String emoji) {
+        String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        Message message = messageRepository.findById(messageId)
+                .orElseThrow(() -> new RuntimeException("Message not found"));
+
+        if (message.isRevoked()) {
+            throw new RuntimeException("Cannot react to a revoked message");
+        }
+        if (message.getContent() != null && message.getContent().startsWith("📞 Cuộc gọi")) {
+            throw new RuntimeException("Cannot react to call log messages");
+        }
+
+        java.util.Map<String, String> reactions = message.getReactions();
+        if (reactions == null) {
+            reactions = new java.util.HashMap<>();
+        }
+
+        // Toggle logic
+        if (emoji.equals(reactions.get(currentUserId))) {
+            reactions.remove(currentUserId);
+        } else {
+            reactions.put(currentUserId, emoji);
+        }
+
+        message.setReactions(reactions);
+        message = messageRepository.save(message);
+
+        MessageResponse response = toMessageResponse(message, currentUserId);
+
+        // Broadcast event
+        RealtimeMessage rtMessage = RealtimeMessage.builder()
+                .toRoomId(message.getConversationId())
+                .type("message_reaction_updated")
+                .payload(response)
+                .build();
+        redisPublisherService.publish(rtMessage);
+
+        return response;
+    }
+
     private MessageResponse toMessageResponse(Message message, String currentUserId) {
         MessageResponse response = MessageResponse.builder()
                 .id(message.getId())
@@ -230,6 +271,7 @@ public class MessageService {
                 .isMe(message.getSenderId().equals(currentUserId))
                 .isRevoked(message.isRevoked())
                 .isEdited(message.isEdited())
+                .reactions(message.getReactions())
                 .build();
 
         try {

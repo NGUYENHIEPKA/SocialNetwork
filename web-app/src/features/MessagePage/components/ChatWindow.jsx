@@ -11,12 +11,12 @@ import { Search } from "lucide-react";
 import { UserAvatar } from "../../../components/ui/user-avatar";
 import { useSelector, useDispatch } from "react-redux";
 import { startOutgoingCall } from "../../../store/callSlice";
-import { receiveRevokeMessage, receiveEditMessage } from "../../../store/chatSlice";
+import { receiveRevokeMessage, receiveEditMessage, receiveReactionUpdate } from "../../../store/chatSlice";
 import { useSocket } from "../../../context/SocketContext";
 import { ConversationDetails } from "./ConversationDetails";
 import { ImageViewer } from "../../../components/ImageViewer/ImageViewer";
 
-export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage, revokedMessage, editedMessage }) {
+export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage, revokedMessage, editedMessage, reactionUpdate }) {
   const { profile } = useSelector(state => state.user);
   const dispatch = useDispatch();
   const socket = useSocket();
@@ -26,8 +26,13 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState(null);
+  const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const emojiRef = useRef(null);
+  const emojiPickerRef = useRef(null);
+
+  const EMOJI_LIST = ['❤️', '👍', '😂', '😮', '😢', '😡'];
 
   // Helper to determine if a message is from me
   const checkIsMe = (msg) => {
@@ -38,7 +43,6 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const emojiRef = useRef(null);
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerMediaList, setViewerMediaList] = useState([]);
@@ -89,6 +93,13 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
     }
   }, [editedMessage, conversation]);
 
+  // Handle incoming real-time message (Reaction Update)
+  useEffect(() => {
+    if (reactionUpdate && conversation && reactionUpdate.conversationId === conversation.id) {
+      setMessages((prev) => prev.map(m => m.id === reactionUpdate.id ? { ...m, reactions: reactionUpdate.reactions } : m));
+    }
+  }, [reactionUpdate, conversation]);
+
   const handleRevokeMessage = async (messageId) => {
     try {
       const res = await messageApi.revokeMessage(messageId);
@@ -115,19 +126,35 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
     setMessageInput("");
   };
 
-  // EMOJI: Close when clicking outside
-  useEffect(() => {
-    if (!emojiOpen) return;
+  const handleReact = async (messageId, emoji) => {
+    try {
+      const res = await messageApi.reactToMessage({ messageId, emoji });
+      const data = res.data || res;
+      if (data.code === 1000) {
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, reactions: data.result.reactions } : m));
+        dispatch(receiveReactionUpdate(data.result));
+      }
+    } catch (error) {
+      console.error("Failed to react to message:", error);
+    } finally {
+      setShowEmojiPickerFor(null);
+    }
+  };
 
+  // EMOJI PICKER & EDIT POPUP: Close when clicking outside
+  useEffect(() => {
     const handleClickOutside = (e) => {
       if (emojiRef.current && !emojiRef.current.contains(e.target)) {
         setEmojiOpen(false);
+      }
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
+        setShowEmojiPickerFor(null);
       }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [emojiOpen]);
+  }, []);
 
   // Load messages when conversation changes
   useEffect(() => {
@@ -365,30 +392,9 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                         Tin nhắn đã bị thu hồi
                       </div>
                     ) : (
-                      <>
-                        <div className="flex items-center gap-2 group">
-                          {msg.isMe && !msg.content?.startsWith("📞 Cuộc gọi") && (
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {/* Chỉ hiện nút sửa cho tin nhắn cuối cùng của mình */}
-                              {messages.filter(m => m.isMe && !m.isRevoked && !m.content?.startsWith("📞")).pop()?.id === msg.id && (
-                                <button 
-                                  onClick={() => handleStartEdit(msg)}
-                                  className="p-1.5 bg-[#1a1a1a] rounded-full text-gray-400 hover:text-blue-500"
-                                  title="Sửa"
-                                >
-                                  <Pencil size={14} />
-                                </button>
-                              )}
-                              <button 
-                                onClick={() => handleRevokeMessage(msg.id)}
-                                className="p-1.5 bg-[#1a1a1a] rounded-full text-gray-400 hover:text-red-500"
-                                title="Thu hồi"
-                              >
-                                <RotateCcw size={14} />
-                              </button>
-                            </div>
-                          )}
-
+                      <div className="relative group flex flex-col items-inherit">
+                        <div className={`flex items-center gap-2 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                          {/* Message Content Bubble */}
                           {msg.content && !msg.content.startsWith("📞 Cuộc gọi") && (
                             <div
                               title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
@@ -400,8 +406,44 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                               )}
                             </div>
                           )}
+
+                          {/* Controls (Smile, Pencil, Revoke) */}
+                          {!msg.content?.startsWith("📞 Cuộc gọi") && (
+                            <div className={`flex items-center gap-1 transition-opacity duration-200 ${showEmojiPickerFor === msg.id ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'}`}>
+                              <button 
+                                onClick={() => setShowEmojiPickerFor(msg.id === showEmojiPickerFor ? null : msg.id)}
+                                className={`p-1.5 bg-[#1a1a1a] rounded-full hover:text-yellow-500 ${showEmojiPickerFor === msg.id ? 'text-yellow-500 opacity-100' : 'text-gray-400'}`}
+                                title="Thả cảm xúc"
+                              >
+                                <Smile size={14} />
+                              </button>
+                              
+                              {msg.isMe && (
+                                <>
+                                  {/* Chỉ hiện nút sửa cho tin nhắn cuối cùng của mình */}
+                                  {messages.filter(m => m.isMe && !m.isRevoked && !m.content?.startsWith("📞")).pop()?.id === msg.id && (
+                                    <button 
+                                      onClick={() => handleStartEdit(msg)}
+                                      className="p-1.5 bg-[#1a1a1a] rounded-full text-gray-400 hover:text-blue-500"
+                                      title="Sửa"
+                                    >
+                                      <Pencil size={14} />
+                                    </button>
+                                  )}
+                                  <button 
+                                    onClick={() => handleRevokeMessage(msg.id)}
+                                    className="p-1.5 bg-[#1a1a1a] rounded-full text-gray-400 hover:text-red-500"
+                                    title="Thu hồi"
+                                  >
+                                    <RotateCcw size={14} />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
 
+                        {/* Call Logs */}
                         {msg.content && msg.content.startsWith("📞 Cuộc gọi") && (
                           <div
                             title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
@@ -418,9 +460,10 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                           </div>
                         )}
 
+                        {/* Media */}
                         {msg.media && msg.media.length > 0 && (
                           <div
-                            className={`grid gap-2 ${msg.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
+                            className={`grid gap-2 mt-1 ${msg.media.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
                             title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
                           >
                             {msg.media.map((m, idx) => (
@@ -439,7 +482,46 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                             ))}
                           </div>
                         )}
-                      </>
+
+                        {/* Emoji Picker Popover */}
+                        {showEmojiPickerFor === msg.id && (
+                          <div 
+                            ref={emojiPickerRef}
+                            className={`absolute bottom-full mb-2 bg-[#1a1a1a] border border-[#333] p-1.5 rounded-full flex gap-1 shadow-2xl z-50 ${msg.isMe ? 'right-0' : 'left-0'}`}
+                          >
+                            {EMOJI_LIST.map(emoji => (
+                              <button 
+                                key={emoji} 
+                                onClick={() => handleReact(msg.id, emoji)}
+                                className={`hover:scale-125 transition-transform p-1 rounded-full ${msg.reactions?.[profile?.id || profile?.userId] === emoji ? 'bg-[#333]' : ''}`}
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Reactions Display */}
+                        {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                          <div className={`flex flex-wrap gap-1 -mt-3 mb-1 relative z-10 ${msg.isMe ? 'justify-end pr-2' : 'justify-start pl-2'}`}>
+                            {Object.entries(
+                              Object.values(msg.reactions).reduce((acc, emoji) => {
+                                acc[emoji] = (acc[emoji] || 0) + 1;
+                                return acc;
+                              }, {})
+                            ).map(([emoji, count]) => (
+                              <button
+                                key={emoji}
+                                onClick={() => handleReact(msg.id, emoji)}
+                                className={`flex items-center gap-1 bg-[#1a1a1a] border border-[#333] rounded-full px-1.5 py-0.5 text-[10px] shadow-sm hover:bg-[#262626] transition-colors ${msg.reactions?.[profile?.id || profile?.userId] === emoji ? 'border-blue-500/50 bg-[#1e293b]' : ''}`}
+                              >
+                                <span>{emoji}</span>
+                                {count > 1 && <span className="font-medium">{count}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

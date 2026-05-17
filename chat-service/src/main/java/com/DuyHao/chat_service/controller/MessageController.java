@@ -45,4 +45,11 @@ public class MessageController {
                 .result(messageService.editMessage(messageId, request.getContent()))
                 .build();
     }
+
+    @PostMapping("/{messageId}/react")
+    ApiResponse<MessageResponse> react(@PathVariable String messageId, @RequestParam String emoji) {
+        return ApiResponse.<MessageResponse>builder()
+                .result(messageService.reactToMessage(messageId, emoji))
+                .build();
+    }
 }
