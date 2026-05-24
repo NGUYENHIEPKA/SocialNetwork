@@ -8,8 +8,10 @@ import com.DuyHao.search_service.dto.response.UserProfileResponse;
 import java.util.Collections;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SearchService {
@@ -23,14 +25,16 @@ public class SearchService {
 
         try {
             users = profileClient.searchUsers(keyword);
+            log.info("Search users with keyword [{}] returned {} results", keyword, users.size());
         } catch (Exception e) {
-            System.err.println("Error calling profile-service: " + e.getMessage());
+            log.error("Error calling profile-service.searchUsers(keyword={}): {}", keyword, e.getMessage(), e);
         }
 
         try {
             posts = postClient.searchPosts(keyword, page, size);
+            log.info("Search posts with keyword [{}] returned {} results", keyword, posts.size());
         } catch (Exception e) {
-            System.err.println("Error calling post-service: " + e.getMessage());
+            log.error("Error calling post-service.searchPosts(keyword={}): {}", keyword, e.getMessage(), e);
         }
 
         return SearchResponse.builder().users(users).posts(posts).build();
@@ -40,7 +44,7 @@ public class SearchService {
         try {
             return profileClient.searchUsers(keyword);
         } catch (Exception e) {
-            System.err.println("Error calling profile-service: " + e.getMessage());
+            log.error("Error calling profile-service.searchUsers(keyword={}): {}", keyword, e.getMessage(), e);
             return Collections.emptyList();
         }
     }
@@ -49,7 +53,7 @@ public class SearchService {
         try {
             return postClient.searchPosts(keyword, page, size);
         } catch (Exception e) {
-            System.err.println("Error calling post-service: " + e.getMessage());
+            log.error("Error calling post-service.searchPosts(keyword={}): {}", keyword, e.getMessage(), e);
             return Collections.emptyList();
         }
     }

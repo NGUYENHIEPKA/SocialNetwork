@@ -114,7 +114,7 @@ export function ActivityPage() {
     const targetUserId = notification?.users?.[0]?.id;
     if (!targetUserId) return;
 
-    // Optimistic: cập nhật mọi follow notification có cùng userId
+    // cập nhật mọi follow notification có cùng userId
     dispatch(markUserFollowed({ userId: targetUserId, followed: true }));
 
     try {

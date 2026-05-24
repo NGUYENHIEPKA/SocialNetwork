@@ -59,7 +59,7 @@ const notificationsSlice = createSlice({
       const existingIndex = state.items.findIndex((it) => groupKey(it) === key);
 
       if (existingIndex !== -1) {
-        // Gộp: tăng count, prepend user mới (nếu chưa có), refresh createdAt
+        // Gộp: tăng count, prepend user mới, refresh createdAt
         const existing = state.items[existingIndex];
         const incomingUsers = incoming.users || (incoming.user ? [incoming.user] : []);
         const mergedUsers = [...incomingUsers];
