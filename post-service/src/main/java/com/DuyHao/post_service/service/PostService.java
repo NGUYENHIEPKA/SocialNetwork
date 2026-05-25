@@ -28,13 +28,15 @@ public class PostService {
     private final InteractionClient interactionClient;
 
     // ==================== CREATE ====================
-    public PostResponse create(String userId, String content, String repostOfId, List<String> mediaIds) {
+    public PostResponse create(
+            String userId, String content, String repostOfId, List<String> mediaIds, List<String> tags) {
         UserResponse user = userClient.getUser(userId);
 
         Post post = Post.builder()
                 .userId(user.getUserId())
                 .content(content)
                 .scope("public")
+                .tags(tags)
                 .createdAt(LocalDateTime.now())
                 .build();
 

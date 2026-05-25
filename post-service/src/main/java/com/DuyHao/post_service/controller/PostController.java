@@ -20,8 +20,8 @@ public class PostController {
     @PostMapping("/posts")
     public ApiResponse<PostResponse> create(@AuthenticationPrincipal Jwt jwt, @RequestBody PostCreateRequest request) {
         String userId = jwt.getSubject();
-        PostResponse post =
-                postService.create(userId, request.getContent(), request.getRepostOfId(), request.getMediaIds());
+        PostResponse post = postService.create(
+                userId, request.getContent(), request.getRepostOfId(), request.getMediaIds(), request.getTags());
 
         return ApiResponse.<PostResponse>builder().result(post).build();
     }
