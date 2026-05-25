@@ -45,6 +45,16 @@ public class PostController {
         return ApiResponse.<List<PostResponse>>builder().result(feed).build();
     }
 
+    @GetMapping("/feed/recommended")
+    public ApiResponse<List<PostResponse>> recommendedFeed(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        String userId = jwt.getSubject();
+        List<PostResponse> feed = postService.getRecommendedFeed(userId, page, size);
+        return ApiResponse.<List<PostResponse>>builder().result(feed).build();
+    }
+
     // ==================== PROFILE ====================
     @GetMapping("/posts/profile")
     public ApiResponse<List<PostResponse>> getMyProfilePosts(@AuthenticationPrincipal Jwt jwt) {

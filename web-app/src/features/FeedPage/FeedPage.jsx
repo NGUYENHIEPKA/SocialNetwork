@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../components/ui/button.js";
 import { Textarea } from "../../components/ui/textarea.js";
-import { Input } from "../../components/ui/input.js";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar.js";
 import { Image, Smile, AtSign, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "../../components/ui/popover.js";
@@ -11,7 +10,7 @@ import { PostCard } from "../../components/PostCard/PostCard.jsx";
 import { SuggestedUsers } from "../../components/SuggestedUsers/SuggestedUsers.jsx";
 import { useDispatch, useSelector } from "react-redux";
 import {
-  fetchFeed,
+  fetchRecommendedFeed,
   createPost,
   selectPosts,
   selectPostsHasMore,
@@ -43,25 +42,8 @@ export function FeedPage() {
   // LOCAL STATE
   const [newPost, setNewPost] = useState("");
   const [mediaFiles, setMediaFiles] = useState([]);
-  const [tags, setTags] = useState([]);
-  const [tagInput, setTagInput] = useState("");
   const fileInputRef = useRef(null);
   const [showEmoji, setShowEmoji] = useState(false);
-
-  const handleTagKeyDown = (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      const val = tagInput.trim().replace(/^#/, "");
-      if (val && !tags.includes(val)) {
-        setTags([...tags, val]);
-      }
-      setTagInput("");
-    }
-  };
-
-  const handleRemoveTag = (indexToRemove) => {
-    setTags(tags.filter((_, idx) => idx !== indexToRemove));
-  };
 
   // FIX: trạng thái posting ngay lập tức
   const [isPosting, setIsPosting] = useState(false);
@@ -70,7 +52,7 @@ export function FeedPage() {
   const loadDelayRef = useRef(null);
 
   useEffect(() => {
-    dispatch(fetchFeed({ page: 0, size: 20 }))
+    dispatch(fetchRecommendedFeed({ page: 0, size: 20 }))
       .unwrap()
       .catch(() => toast.error("Failed to load feed"));
   }, [dispatch]);
@@ -91,7 +73,7 @@ export function FeedPage() {
         if (loadDelayRef.current) return;
 
         loadDelayRef.current = setTimeout(() => {
-          dispatch(fetchFeed({ page, size: 20 }))
+          dispatch(fetchRecommendedFeed({ page, size: 20 }))
             .unwrap()
             .catch(() => toast.error("Failed to load feed"));
           loadDelayRef.current = null;
@@ -239,7 +221,6 @@ export function FeedPage() {
       const payload = {
         content,
         mediaIds,
-        tags,
       };
 
       const action = await dispatch(createPost(payload));
@@ -247,8 +228,6 @@ export function FeedPage() {
       if (createPost.fulfilled.match(action)) {
         toast.success("Posted successfully");
         setNewPost("");
-        setTags([]);
-        setTagInput("");
         handleRemoveAll();
       } else {
         toast.error(action.payload?.message || "Post failed");
@@ -300,40 +279,6 @@ export function FeedPage() {
               className="min-h-[80px] resize-none text-base w-full"
               maxLength={500}
             />
-
-            {/* Tags input / display */}
-            <div className="mt-3 space-y-2">
-              {tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 items-center">
-                  {tags.map((tag, idx) => (
-                    <span
-                      key={idx}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 transition-all hover:bg-primary/20"
-                    >
-                      #{tag}
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveTag(idx)}
-                        className="text-primary hover:text-red-400 focus:outline-none transition-colors ml-0.5 cursor-pointer"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              
-              <div className="flex items-center gap-2 max-w-[200px]">
-                <Input
-                  type="text"
-                  placeholder="Add tag... (Enter)"
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={handleTagKeyDown}
-                  className="h-7 text-xs bg-muted/20 border-border/60 focus:bg-muted/40"
-                />
-              </div>
-            </div>
 
             {hasMedia && (
               <div className="mt-3 space-y-2">
