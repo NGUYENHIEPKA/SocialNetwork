@@ -1,5 +1,6 @@
 package com.DuyHao.search_service.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDate;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -15,6 +16,7 @@ public class UserProfileResponse {
     String username;
     String firstName;
     String lastName;
+    @JsonFormat(pattern = "dd-MM-yyyy")
     LocalDate dob;
     String city;
     String avatarUrl;

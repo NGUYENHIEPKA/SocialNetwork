@@ -6,6 +6,6 @@ import org.springframework.web.bind.annotation.*;
 @FeignClient(name = "follow-service", url = "http://localhost:8084/follow")
 public interface FollowClient {
 
-    @GetMapping("/internal/follow/check")
+    @GetMapping("/internal/follow/is-following")
     boolean isFollowing(@RequestParam String followerId, @RequestParam String followingId);
 }
