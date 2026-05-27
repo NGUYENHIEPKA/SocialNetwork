@@ -2,6 +2,7 @@ package com.DuyHao.post_service.controller;
 
 import com.DuyHao.post_service.dto.ApiResponse;
 import com.DuyHao.post_service.dto.request.PostCreateRequest;
+import com.DuyHao.post_service.dto.response.LocalFeedResponse;
 import com.DuyHao.post_service.dto.response.PostResponse;
 import com.DuyHao.post_service.service.PostService;
 import java.util.List;
@@ -18,10 +19,17 @@ public class PostController {
 
     // ==================== CREATE POST ====================
     @PostMapping("/posts")
-    public ApiResponse<PostResponse> create(@AuthenticationPrincipal Jwt jwt, @RequestBody PostCreateRequest request) {
+    public ApiResponse<PostResponse> create(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody PostCreateRequest request,
+            @RequestHeader(value = "X-Client-IP", required = false) String xClientIp,
+            @RequestHeader(value = "X-Forwarded-For", required = false) String xForwardedFor,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+
         String userId = jwt.getSubject();
-        PostResponse post =
-                postService.create(userId, request.getContent(), request.getRepostOfId(), request.getMediaIds());
+        // Lấy IP thật: ưu tiên X-Client-IP (Gateway inject), fallback X-Forwarded-For, rồi remoteAddr
+        String clientIp = postService.extractClientIp(xClientIp, xForwardedFor, httpRequest.getRemoteAddr());
+        PostResponse post = postService.create(userId, request.getContent(), request.getRepostOfId(), request.getMediaIds(), clientIp);
 
         return ApiResponse.<PostResponse>builder().result(post).build();
     }
@@ -43,6 +51,32 @@ public class PostController {
         String userId = jwt.getSubject();
         List<PostResponse> feed = postService.getFeed(userId, page, size);
         return ApiResponse.<List<PostResponse>>builder().result(feed).build();
+    }
+
+    // ==================== LOCAL FEED ====================
+    @GetMapping("/feed/local")
+    public ApiResponse<LocalFeedResponse> localFeed(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam String city,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        String userId = jwt.getSubject();
+        PostService.LocalFeedResult result = postService.getLocalFeed(city, userId, page, size);
+        return ApiResponse.<LocalFeedResponse>builder()
+                .result(new LocalFeedResponse(result.posts(), result.isFallback(), city))
+                .build();
+    }
+
+    // Dịch IP của client thành tên tỉnh/thành phố
+    @GetMapping("/feed/resolve-city")
+    public ApiResponse<String> resolveCity(
+            @RequestHeader(value = "X-Client-IP", required = false) String xClientIp,
+            @RequestHeader(value = "X-Forwarded-For", required = false) String xForwardedFor,
+            jakarta.servlet.http.HttpServletRequest httpRequest) {
+        // Lấy IP thật: ưu tiên X-Client-IP (Gateway inject), fallback X-Forwarded-For, rồi remoteAddr
+        String clientIp = postService.extractClientIp(xClientIp, xForwardedFor, httpRequest.getRemoteAddr());
+        String city = postService.resolveCity(clientIp);
+        return ApiResponse.<String>builder().result(city).build();
     }
 
     // ==================== PROFILE ====================

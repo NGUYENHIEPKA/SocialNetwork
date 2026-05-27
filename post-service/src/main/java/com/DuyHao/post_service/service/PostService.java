@@ -26,15 +26,21 @@ public class PostService {
     private final UserClient userClient;
     private final MediaClient mediaClient;
     private final InteractionClient interactionClient;
+    private final GeoIpService geoIpService;
+    private final LocalFeedCacheService localFeedCacheService;
 
     // ==================== CREATE ====================
-    public PostResponse create(String userId, String content, String repostOfId, List<String> mediaIds) {
+    public PostResponse create(String userId, String content, String repostOfId, List<String> mediaIds, String clientIp) {
         UserResponse user = userClient.getUser(userId);
+
+        // Resolve city từ IP
+        String city = geoIpService.resolveCity(clientIp);
 
         Post post = Post.builder()
                 .userId(user.getUserId())
                 .content(content)
                 .scope("public")
+                .city(city)
                 .createdAt(LocalDateTime.now())
                 .build();
 
@@ -48,6 +54,12 @@ public class PostService {
         if (mediaIds != null && !mediaIds.isEmpty()) {
             mediaClient.assignMediaToPost(saved.getId(), mediaIds);
         }
+
+        // Lưu vào Redis ZSET (chỉ bài gốc, không lưu repost)
+        if (repostOfId == null || repostOfId.isBlank()) {
+            localFeedCacheService.addPost(city, saved.getId(), saved.getCreatedAt());
+        }
+
         return getPostById(saved.getId(), userId);
     }
 
@@ -60,8 +72,15 @@ public class PostService {
 
         if (!post.getUserId().equals(currentUserId)) throw new RuntimeException("You do not have permission");
 
+        // Lưu city trước khi xóa để dùng cho Redis
+        String city = post.getCity();
+
         postRepository.deleteByRepostOfId(post.getId());
         postRepository.delete(post);
+
+        // Xóa khỏi Redis ZSET
+        localFeedCacheService.removePost(city, postId);
+
         CompletableFuture.runAsync(() -> mediaClient.deleteMediaByPostId(postId));
         // Xóa tất cả comments của post này
         CompletableFuture.runAsync(() -> {
@@ -95,6 +114,65 @@ public class PostService {
                 .map(post -> buildPostResponse(post, currentUserId, userMap))
                 .collect(Collectors.toList());
     }
+
+    // ==================== LOCAL FEED ====================
+    // Redis ZSET - batch DB query - fallback DB nếu Redis miss - fallback toàn quốc nếu tỉnh trống.
+    public LocalFeedResult getLocalFeed(String city, String currentUserId, int page, int size) {
+        // Bước 1: Thử lấy từ Redis ZSET
+        List<String> postIds = localFeedCacheService.getPostIds(city, page, size);
+
+        List<Post> posts;
+        boolean isFallback = false;
+
+        if (!postIds.isEmpty()) {
+            // Cache hit: batch fetch từ DB theo IDs
+            posts = postRepository.findByIdInAndRepostOfIsNull(postIds);
+            // Giữ đúng thứ tự từ Redis (mới nhất trước)
+            Map<String, Post> postMap = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
+            posts = postIds.stream()
+                    .map(postMap::get)
+                    .filter(p -> p != null)
+                    .collect(Collectors.toList());
+        } else {
+            // Cache miss: fallback sang DB query trực tiếp
+            Pageable pageable = PageRequest.of(page, size);
+            posts = postRepository.findByCityOrderByCreatedAtDesc(city, pageable);
+
+            if (posts.isEmpty() && page == 0) {
+                // Tỉnh chưa có bài nào → fallback toàn quốc
+                posts = postRepository.findLatestGlobalPosts(pageable);
+                isFallback = true;
+            }
+        }
+
+        if (posts.isEmpty()) {
+            return new LocalFeedResult(List.of(), isFallback);
+        }
+
+        // Enrich user info, media, interaction
+        Set<String> userIds = posts.stream().map(Post::getUserId).collect(Collectors.toSet());
+        Map<String, UserResponse> userMap = userClient.getUsers(new ArrayList<>(userIds)).stream()
+                .collect(Collectors.toMap(UserResponse::getUserId, u -> u));
+
+        List<PostResponse> result = posts.stream()
+                .map(post -> buildPostResponse(post, currentUserId, userMap))
+                .collect(Collectors.toList());
+
+        return new LocalFeedResult(result, isFallback);
+    }
+
+    // Gọi geoIpService
+    public String resolveCity(String clientIp) {
+        return geoIpService.resolveCity(clientIp);
+    }
+
+    // Gọi geoIpService
+    public String extractClientIp(String xClientIp, String xForwardedFor, String remoteAddr) {
+        return geoIpService.extractClientIp(xClientIp, xForwardedFor, remoteAddr);
+    }
+
+    // Load feed Local
+    public record LocalFeedResult(List<PostResponse> posts, boolean isFallback) {}
 
     // ==================== PROFILE ====================
     public List<PostResponse> getPostsByUserId(String userId, String currentUserId) {

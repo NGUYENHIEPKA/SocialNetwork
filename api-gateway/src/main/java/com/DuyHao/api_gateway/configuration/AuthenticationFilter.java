@@ -55,10 +55,15 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         log.debug("token:{}", token);
 
         return identityService.introspect(token).flatMap(introspectResponse -> {
-            if (introspectResponse.getResult() != null && introspectResponse.getResult().isValid())
-                return chain.filter(exchange);
-            else
+            if (introspectResponse.getResult() != null && introspectResponse.getResult().isValid()) {
+                // Inject X-Client-IP để downstream services dùng cho GeoIP
+                ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+                        .header("X-Client-IP", extractClientIp(exchange.getRequest()))
+                        .build();
+                return chain.filter(exchange.mutate().request(mutatedRequest).build());
+            } else {
                 return unauthenticated(exchange.getResponse());
+            }
         }).onErrorResume(throwable -> {
             log.error("Introspect error: {}", throwable.getMessage());
             return unauthenticated(exchange.getResponse());
@@ -94,5 +99,21 @@ public class AuthenticationFilter implements GlobalFilter, Ordered {
         String path = request.getURI().getPath();
         return Arrays.stream(publicEndpoints)
                 .anyMatch(path::matches);
+    }
+
+    /**
+     * Lấy IP thật của client từ X-Forwarded-For (lấy IP đầu tiên).
+     * Fallback về remoteAddress nếu không có header.
+     */
+    private String extractClientIp(ServerHttpRequest request) {
+        List<String> forwarded = request.getHeaders().get("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isEmpty()) {
+            // X-Forwarded-For có thể là "client, proxy1, proxy2" → lấy IP đầu tiên
+            return forwarded.getFirst().split(",")[0].trim();
+        }
+        if (request.getRemoteAddress() != null) {
+            return request.getRemoteAddress().getAddress().getHostAddress();
+        }
+        return "";
     }
 }
