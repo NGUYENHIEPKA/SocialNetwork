@@ -96,29 +96,25 @@ public class FollowService {
 
     // Lấy danh sách người đang follow userId (followers)
     public List<String> getFollowerIds(String userId) {
-        return followRepo.findByFollowingId(userId)
-                .stream()
+        return followRepo.findByFollowingId(userId).stream()
                 .map(f -> f.getFollowerId())
                 .toList();
     }
 
     // Lấy danh sách userId đang follow (following)
     public List<String> getFollowingIds(String userId) {
-        return followRepo.findByFollowerId(userId)
-                .stream()
+        return followRepo.findByFollowerId(userId).stream()
                 .map(f -> f.getFollowingId())
                 .toList();
     }
 
     // Lấy danh sách bạn bè (follow 2 chiều)
     public List<String> getFriendIds(String userId) {
-        Set<String> followings = followRepo.findByFollowerId(userId)
-                .stream()
+        Set<String> followings = followRepo.findByFollowerId(userId).stream()
                 .map(f -> f.getFollowingId())
                 .collect(java.util.stream.Collectors.toSet());
 
-        return followRepo.findByFollowingId(userId)
-                .stream()
+        return followRepo.findByFollowingId(userId).stream()
                 .map(f -> f.getFollowerId())
                 .filter(followings::contains)
                 .toList();

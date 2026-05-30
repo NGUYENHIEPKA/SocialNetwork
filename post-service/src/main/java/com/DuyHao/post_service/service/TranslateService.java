@@ -42,9 +42,7 @@ public class TranslateService {
             HttpEntity<String> entity = new HttpEntity<>(body, headers);
 
             // Gọi DeepL API
-            ResponseEntity<String> response = restTemplate.exchange(
-                DEEPL_URL, HttpMethod.POST, entity, String.class
-            );
+            ResponseEntity<String> response = restTemplate.exchange(DEEPL_URL, HttpMethod.POST, entity, String.class);
 
             // Parse response
             return parseResponse(response.getBody());

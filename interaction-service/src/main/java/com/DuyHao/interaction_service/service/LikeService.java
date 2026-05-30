@@ -78,15 +78,11 @@ public class LikeService {
         }
     }
 
-
-     //Lấy danh sách người đã like bài viết (tối đa limit người, mới nhất trước)
+    // Lấy danh sách người đã like bài viết (tối đa limit người, mới nhất trước)
     public PostLikersResponse getPostLikers(String postId, int limit) {
         long total = likeRepository.countByPostId(postId);
         if (total == 0) {
-            return PostLikersResponse.builder()
-                    .likers(List.of())
-                    .othersCount(0)
-                    .build();
+            return PostLikersResponse.builder().likers(List.of()).othersCount(0).build();
         }
 
         List<String> userIds = likeRepository.findUserIdsByPostId(postId, PageRequest.of(0, limit));
@@ -102,9 +98,6 @@ public class LikeService {
 
         long others = Math.max(0, total - likers.size()); // trừ cho 10 người lấy danh sách ra
 
-        return PostLikersResponse.builder()
-                .likers(likers)
-                .othersCount(others)
-                .build();
+        return PostLikersResponse.builder().likers(likers).othersCount(others).build();
     }
 }

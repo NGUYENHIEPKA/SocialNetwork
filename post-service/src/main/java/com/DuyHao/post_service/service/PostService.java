@@ -30,7 +30,8 @@ public class PostService {
     private final LocalFeedCacheService localFeedCacheService;
 
     // ==================== CREATE ====================
-    public PostResponse create(String userId, String content, String repostOfId, List<String> mediaIds, String clientIp) {
+    public PostResponse create(
+            String userId, String content, String repostOfId, List<String> mediaIds, String clientIp) {
         UserResponse user = userClient.getUser(userId);
 
         // Resolve city từ IP
@@ -129,10 +130,7 @@ public class PostService {
             posts = postRepository.findByIdInAndRepostOfIsNull(postIds);
             // Giữ đúng thứ tự từ Redis (mới nhất trước)
             Map<String, Post> postMap = posts.stream().collect(Collectors.toMap(Post::getId, p -> p));
-            posts = postIds.stream()
-                    .map(postMap::get)
-                    .filter(p -> p != null)
-                    .collect(Collectors.toList());
+            posts = postIds.stream().map(postMap::get).filter(p -> p != null).collect(Collectors.toList());
         } else {
             // Cache miss: fallback sang DB query trực tiếp
             Pageable pageable = PageRequest.of(page, size);

@@ -33,7 +33,8 @@ public class PostController {
         String userId = jwt.getSubject();
         // Lấy IP thật: ưu tiên X-Client-IP (Gateway inject), fallback X-Forwarded-For, rồi remoteAddr
         String clientIp = postService.extractClientIp(xClientIp, xForwardedFor, httpRequest.getRemoteAddr());
-        PostResponse post = postService.create(userId, request.getContent(), request.getRepostOfId(), request.getMediaIds(), clientIp);
+        PostResponse post = postService.create(
+                userId, request.getContent(), request.getRepostOfId(), request.getMediaIds(), clientIp);
 
         return ApiResponse.<PostResponse>builder().result(post).build();
     }
@@ -137,8 +138,7 @@ public class PostController {
     // ==================== TRANSLATE ====================
     @PostMapping("/posts/translate")
     public ApiResponse<TranslateResponse> translate(
-            @RequestBody TranslateRequest request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @RequestBody TranslateRequest request, @AuthenticationPrincipal Jwt jwt) {
         TranslateResponse result = translateService.translate(request);
         return ApiResponse.<TranslateResponse>builder().result(result).build();
     }
