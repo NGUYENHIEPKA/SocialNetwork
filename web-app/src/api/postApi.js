@@ -39,6 +39,26 @@ const postApi = {
   },
 
   /**
+   * 3.2 LẤY TOP TAGS PHỔ BIẾN (TRENDING TAGS)
+   * Backend dùng: @GetMapping("/feed/trending-tags")
+   */
+  getTrendingTags(limit = 3) {
+    return axiosClient.get("/post/feed/trending-tags", {
+      params: { limit }
+    });
+  },
+
+  /**
+   * 3.3 LẤY BÀI VIẾT THEO TAG
+   * Backend dùng: @GetMapping("/feed/tag/{tag}")
+   */
+  getPostsByTag(tag, { page = 0, size = 20 } = {}) {
+    return axiosClient.get(`/post/feed/tag/${tag}`, {
+      params: { page, size }
+    });
+  },
+
+  /**
    * 4. LẤY BÀI VIẾT CỦA MÌNH
    * Backend dùng: @GetMapping("/posts/profile")
    */

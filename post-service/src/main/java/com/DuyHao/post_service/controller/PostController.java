@@ -55,6 +55,25 @@ public class PostController {
         return ApiResponse.<List<PostResponse>>builder().result(feed).build();
     }
 
+    @GetMapping("/feed/trending-tags")
+    public ApiResponse<List<String>> getTrendingTags(@RequestParam(defaultValue = "3") int limit) {
+        return ApiResponse.<List<String>>builder()
+                .result(postService.getTrendingTags(limit))
+                .build();
+    }
+
+    @GetMapping("/feed/tag/{tag}")
+    public ApiResponse<List<PostResponse>> getPostsByTag(
+            @PathVariable String tag,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        String userId = jwt.getSubject();
+        return ApiResponse.<List<PostResponse>>builder()
+                .result(postService.getPostsByTag(tag, userId, page, size))
+                .build();
+    }
+
     // ==================== PROFILE ====================
     @GetMapping("/posts/profile")
     public ApiResponse<List<PostResponse>> getMyProfilePosts(@AuthenticationPrincipal Jwt jwt) {

@@ -14,6 +14,7 @@ import { verifyToken } from "./store/userSlice.js";
 import { useDispatch, useSelector } from "react-redux";
 import { Spinner } from "@/components/ui/spinner"
 import { PostDetailPage } from "./features/PostDetailPage/PostDetailPage.jsx";
+import { TagFeedPage } from "./features/TagFeedPage/TagFeedPage.jsx";
 import { ConnectionsPage } from "./features/ConnectionsPage/ConnectionsPage.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import PublicRoute from "./components/PublicRoute.jsx";
@@ -85,6 +86,7 @@ export default function App() {
               <Route path="profile" element={<ProfilePage />} />
               <Route path="connections/:username" element={<ConnectionsPage />} />
               <Route path="post/:postId" element={<PostDetailPage />} />
+              <Route path="tag/:tagName" element={<TagFeedPage />} />
             </Route>
           </Route>
 
