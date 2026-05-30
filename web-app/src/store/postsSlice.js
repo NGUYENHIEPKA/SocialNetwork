@@ -21,6 +21,33 @@ export const fetchRecommendedFeed = createAsyncThunk(
   }
 );
 
+// Load top tags phổ biến
+export const fetchTrendingTags = createAsyncThunk(
+  "posts/fetchTrendingTags",
+  async (limit = 3, { rejectWithValue }) => {
+    try {
+      const res = await postApi.getTrendingTags(limit);
+      return res.result || [];
+    } catch (err) {
+      return rejectWithValue(err?.message || "Không thể tải xu hướng");
+    }
+  }
+);
+
+// Load bài viết theo tag
+export const fetchPostsByTag = createAsyncThunk(
+  "posts/fetchPostsByTag",
+  async ({ tag, page = 0, size = 20 }, { rejectWithValue }) => {
+    try {
+      const res = await postApi.getPostsByTag(tag, { page, size });
+      const data = res?.result || [];
+      return { tag, page, size, data };
+    } catch (err) {
+      return rejectWithValue(err?.message || "Không thể tải bài viết");
+    }
+  }
+);
+
 // Tạo bài viết mới (Payload: { content, mediaIds, repostOfId })
 export const createPost = createAsyncThunk(
   "posts/create",
@@ -170,6 +197,14 @@ const postsSlice = createSlice({
     searchPosts: [],
     loadingSearchPosts: false,
     searchPostsError: null,
+
+    trendingTags: [],
+    loadingTrending: false,
+
+    tagPosts: [],
+    loadingTagPosts: false,
+    tagPage: 0,
+    tagHasMore: true,
   },
   reducers: {
     resetFeed(state) {
@@ -177,6 +212,11 @@ const postsSlice = createSlice({
       state.page = 0;
       state.hasMore = true;
       state.error = null;
+    },
+    resetTagFeed(state) {
+      state.tagPosts = [];
+      state.tagPage = 0;
+      state.tagHasMore = true;
     },
     // Đồng bộ trạng thái Like xuyên suốt các màn hình
     syncLikeByOriginalId(state, action) {
@@ -355,11 +395,42 @@ const postsSlice = createSlice({
       .addCase(fetchPostById.fulfilled, (state, action) => {
         state.loadingPostDetail = false;
         state.postDetail = action.payload;
+      })
+
+      // fetchTrendingTags
+      .addCase(fetchTrendingTags.pending, (state) => {
+        state.loadingTrending = true;
+      })
+      .addCase(fetchTrendingTags.fulfilled, (state, action) => {
+        state.loadingTrending = false;
+        state.trendingTags = action.payload;
+      })
+      .addCase(fetchTrendingTags.rejected, (state) => {
+        state.loadingTrending = false;
+      })
+
+      // fetchPostsByTag
+      .addCase(fetchPostsByTag.pending, (state) => {
+        state.loadingTagPosts = true;
+      })
+      .addCase(fetchPostsByTag.fulfilled, (state, action) => {
+        const { page, size, data } = action.payload;
+        if (page === 0) {
+          state.tagPosts = data;
+        } else {
+          state.tagPosts = [...state.tagPosts, ...data];
+        }
+        state.tagPage = page + 1;
+        state.loadingTagPosts = false;
+        state.tagHasMore = data.length === size;
+      })
+      .addCase(fetchPostsByTag.rejected, (state) => {
+        state.loadingTagPosts = false;
       });
   },
 });
 
-export const { resetFeed, syncLikeByOriginalId, setSearchPosts, syncCommentCount } = postsSlice.actions;
+export const { resetFeed, resetTagFeed, syncLikeByOriginalId, setSearchPosts, syncCommentCount } = postsSlice.actions;
 export default postsSlice.reducer;
 
 // ==========================================
@@ -373,6 +444,16 @@ export const selectPostsCreating = (state) => state.posts.creating;
 export const selectPostsHasMore = (state) => state.posts.hasMore;
 export const selectPostsPage = (state) => state.posts.page;
 export const selectPostsError = (state) => state.posts.error;
+
+// Trending Tags
+export const selectTrendingTags = (state) => state.posts.trendingTags;
+export const selectTrendingLoading = (state) => state.posts.loadingTrending;
+
+// Tag Feed
+export const selectTagPosts = (state) => state.posts.tagPosts;
+export const selectTagPostsLoading = (state) => state.posts.loadingTagPosts;
+export const selectTagHasMore = (state) => state.posts.tagHasMore;
+export const selectTagPage = (state) => state.posts.tagPage;
 
 // Bài viết của tôi (My Profile)
 export const selectMyPosts = (state) => state.posts.myPosts;

@@ -2,10 +2,8 @@ package com.DuyHao.post_service.controller;
 
 import com.DuyHao.post_service.dto.ApiResponse;
 import com.DuyHao.post_service.dto.request.PostCreateRequest;
-import com.DuyHao.post_service.dto.request.TranslateRequest;
 import com.DuyHao.post_service.dto.response.LocalFeedResponse;
 import com.DuyHao.post_service.dto.response.PostResponse;
-import com.DuyHao.post_service.dto.response.TranslateResponse;
 import com.DuyHao.post_service.service.PostService;
 import com.DuyHao.post_service.service.TranslateService;
 import java.util.List;
@@ -97,6 +95,25 @@ public class PostController {
         String clientIp = postService.extractClientIp(xClientIp, xForwardedFor, httpRequest.getRemoteAddr());
         String city = postService.resolveCity(clientIp);
         return ApiResponse.<String>builder().result(city).build();
+    }
+
+    @GetMapping("/feed/trending-tags")
+    public ApiResponse<List<String>> getTrendingTags(@RequestParam(defaultValue = "3") int limit) {
+        return ApiResponse.<List<String>>builder()
+                .result(postService.getTrendingTags(limit))
+                .build();
+    }
+
+    @GetMapping("/feed/tag/{tag}")
+    public ApiResponse<List<PostResponse>> getPostsByTag(
+            @PathVariable String tag,
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        String userId = jwt.getSubject();
+        return ApiResponse.<List<PostResponse>>builder()
+                .result(postService.getPostsByTag(tag, userId, page, size))
+                .build();
     }
 
     // ==================== PROFILE ====================

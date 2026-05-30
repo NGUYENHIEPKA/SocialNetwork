@@ -40,4 +40,15 @@ public interface PostRepository extends JpaRepository<Post, String> {
     // Lấy bài mowiss nhất khi local chưa có bài nào
     @Query("SELECT p FROM Post p WHERE p.repostOf IS NULL ORDER BY p.createdAt DESC")
     List<Post> findLatestGlobalPosts(Pageable pageable);
+
+    @Query(
+            value = "SELECT tag, COUNT(*) as tag_count " + "FROM posts, jsonb_array_elements_text(tags) as tag "
+                    + "GROUP BY tag "
+                    + "ORDER BY tag_count DESC "
+                    + "LIMIT :limit",
+            nativeQuery = true)
+    List<Object[]> findTopTrendingTags(int limit);
+
+    @Query(value = "SELECT * FROM posts WHERE tags @> CAST(:tagJson AS jsonb) ORDER BY created_at DESC", nativeQuery = true)
+    List<Post> findByTag(String tagJson, Pageable pageable);
 }

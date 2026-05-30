@@ -3,6 +3,7 @@ import { Sidebar } from "../Sidebar/Sidebar";
 import { MobileNav } from "../MobileNav/MobileNav";
 import { MessagePopup } from "../MessagePopup/MessagePopup";
 import { SuggestedUsers } from "../SuggestedUsers/SuggestedUsers";
+import { TrendingTags } from "../TrendingTags/TrendingTags";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { fetchConversations } from "../../store/chatSlice";
@@ -30,21 +31,7 @@ export function ThreadsLayout() {
           {/* Suggested for you — dùng component thật */}
           <SuggestedUsers sidebar />
 
-          <div className="bg-muted rounded-lg p-4">
-            <h3 className="font-semibold mb-3">What's happening</h3>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Very popular</p>
-                <p className="font-medium">#MeoCam</p>
-                <p className="text-xs text-muted-foreground">45.2K posts</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Trending</p>
-                <p className="font-medium">#WebDevelopment</p>
-                <p className="text-xs text-muted-foreground">28.1K posts</p>
-              </div>
-            </div>
-          </div>
+          <TrendingTags />
         </div>
       </div>
         {/* Message Popup */}

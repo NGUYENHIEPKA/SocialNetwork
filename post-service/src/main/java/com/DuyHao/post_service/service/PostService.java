@@ -396,6 +396,27 @@ public class PostService {
                 .collect(Collectors.toList());
     }
 
+    public List<String> getTrendingTags(int limit) {
+        List<Object[]> results = postRepository.findTopTrendingTags(limit);
+        return results.stream().map(result -> (String) result[0]).collect(Collectors.toList());
+    }
+
+    public List<PostResponse> getPostsByTag(String tag, String currentUserId, int page, int size) {
+        // PostgreSQL query requires JSON format for @> operator
+        String tagJson = "[\"" + tag + "\"]";
+        List<Post> posts = postRepository.findByTag(tagJson, PageRequest.of(page, size));
+
+        if (posts.isEmpty()) return Collections.emptyList();
+
+        Set<String> userIds = posts.stream().map(Post::getUserId).collect(Collectors.toSet());
+        Map<String, UserResponse> userMap = userClient.getUsers(new ArrayList<>(userIds)).stream()
+                .collect(Collectors.toMap(UserResponse::getUserId, u -> u));
+
+        return posts.stream()
+                .map(post -> buildPostResponse(post, currentUserId, userMap))
+                .collect(Collectors.toList());
+    }
+
     // ==================== HELPER ====================
 
     private PostResponse buildPostResponse(Post post, String currentUserId, Map<String, UserResponse> userMap) {
