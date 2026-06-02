@@ -20,4 +20,7 @@ public class CallResponse {
     LocalDateTime startTime;
     LocalDateTime endTime;
     LocalDateTime createdAt;
+    // Thông tin người gọi để hiển thị trên overlay
+    String callerName;
+    String callerAvatar;
 }

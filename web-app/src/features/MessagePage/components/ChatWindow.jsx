@@ -205,7 +205,12 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
     try {
       const res = await messageApi.initiateCall(payload);
       const callData = res.data?.result || res.result || res.data || payload;
-      dispatch(startOutgoingCall(callData));
+      // Đính kèm tên và avatar của người được gọi để hiển thị trên overlay
+      dispatch(startOutgoingCall({
+        ...callData,
+        otherUserName: conversation.user?.displayName || conversation.conversationName || "",
+        otherUserAvatar: conversation.user?.avatar || conversation.conversationAvatar || null,
+      }));
     } catch (error) {
       console.error("Failed to initiate call:", error);
     }
@@ -364,7 +369,7 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 chat-scroll">
           {messagesLoading ? (
             <div className="flex items-center justify-center h-full">
               <Spinner className="w-8 h-8 text-gray-500" />

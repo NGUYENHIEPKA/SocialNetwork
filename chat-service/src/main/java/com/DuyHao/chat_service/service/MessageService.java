@@ -280,6 +280,7 @@ public class MessageService {
                 response.setSender(MessageResponse.SenderInfo.builder()
                         .id(profile.getUserId())
                         .fullName(profile.getFullName())
+                        .avatarUrl(profile.getAvatarUrl())
                         .build());
             }
         } catch (Exception e) {

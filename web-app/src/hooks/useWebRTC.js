@@ -207,18 +207,21 @@ export const useWebRTC = (callData, callStatus, onPeerDisconnect) => {
 
     // Dọn dẹp tài nguyên khi cúp máy
     useEffect(() => {
-        if (callStatus === 'IDLE' || callStatus === 'COMPLETED' || callStatus === 'REJECTED' || callStatus === 'MISSED') {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-                setLocalStream(null);
-            }
+        if (callStatus === 'IDLE') {
+            // Dừng tất cả tracks để tắt đèn cam/mic
+            setLocalStream(prev => {
+                if (prev) {
+                    prev.getTracks().forEach(track => track.stop());
+                }
+                return null;
+            });
             if (peerConnection.current) {
                 peerConnection.current.close();
                 peerConnection.current = null;
             }
             setRemoteStream(null);
         }
-    }, [callStatus]); // Removed localStream from dependency array to avoid infinite loop of stopping tracks
+    }, [callStatus]);
 
     // Hàm điều khiển Mic/Cam
     const toggleMuteHook = () => {
