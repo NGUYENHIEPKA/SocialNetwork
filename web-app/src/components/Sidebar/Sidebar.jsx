@@ -100,18 +100,18 @@ export function Sidebar({ currentPage }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent
           align="end"
-          className="w-56 bg-[#1e1e1e] border-[#2a2a2a] text-[15px] p-1"
+          className="w-56 bg-card/95 border border-border/40 text-[15px] p-1 rounded-xl shadow-xl backdrop-blur-md"
           sideOffset={8}
         >
           <DropdownMenuItem
             onClick={() => navigate("/profile")}
-            className="cursor-pointer text-white hover:bg-[#2a2a2a] focus:bg-[#2a2a2a] rounded-md px-3 py-2"
+            className="cursor-pointer text-foreground hover:bg-muted focus:bg-muted rounded-lg px-3 py-2 transition-colors font-medium"
           >
             Xem trang cá nhân
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={handleLogout}
-            className="cursor-pointer text-red-500 hover:bg-[#2a2a2a] hover:text-red-500 focus:bg-[#2a2a2a] focus:text-red-500 rounded-md px-3 py-2"
+            className="cursor-pointer text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive rounded-lg px-3 py-2 transition-colors font-medium"
           >
             Đăng xuất
           </DropdownMenuItem>
@@ -121,7 +121,7 @@ export function Sidebar({ currentPage }) {
   }
 
   return (
-    <div className="hidden md:flex w-64 h-screen border-r border-border bg-background flex flex-col sticky top-0">
+    <div className="hidden md:flex w-64 h-screen border-r border-border/40 bg-background/70 backdrop-blur-md flex-col sticky top-0">
       {/* Logo */}
       <div className="p-6">
         <h1

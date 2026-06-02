@@ -489,16 +489,6 @@ export function FeedPage() {
           </div>
         </TabsContent>
 
-        <div className="p-4 text-center">
-          {loading && hasMore && (
-            <span className="text-muted-foreground text-sm">Loading...</span>
-          )}
-          {hasMore && <div ref={loadMoreRef} className="h-1" />}
-          {!hasMore && !loading && (
-            <span className="text-muted-foreground text-sm">No more posts</span>
-          )}
-        </div>
-
         <ModerationWarning
           open={showModWarning}
           result={moderationResult}

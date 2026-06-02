@@ -1,14 +1,19 @@
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice, createEntityAdapter } from "@reduxjs/toolkit";
 import commentApi from "@/api/commentApi";
 import likeApi from "../api/likeApi";
 import { syncCommentCount } from "./postsSlice";
 
+// 1. ENTITY ADAPTER SETUP
+const commentsAdapter = createEntityAdapter({
+  selectId: (comment) => comment.id,
+});
+
+// 2. ASYNC THUNKS
 export const fetchCommentsByPost = createAsyncThunk(
   "comments/fetchByPost",
   async ({ postId, page = 0, size = 10 }, { rejectWithValue }) => {
     try {
       const res = await commentApi.getComments(postId, page, size);
-      // Đảm bảo lấy đúng mảng result từ cấu trúc { code: 1000, result: [...] }
       const data = res?.data?.result || res?.result || [];
       return { postId, page, size, data };
     } catch (err) {
@@ -90,7 +95,9 @@ export const fetchReplies = createAsyncThunk(
   }
 );
 
-const initialState = {
+// 3. INITIAL STATE
+const initialState = commentsAdapter.getInitialState({
+  // Map postId to list of commentIds
   byPostId: {},
   loadingByPostId: {},
   errorByPostId: {},
@@ -98,17 +105,21 @@ const initialState = {
   pageByPostId: {},
   hasMoreByPostId: {},
 
-  // Replies theo commentId
+  // Map commentId to list of reply commentIds
   repliesByCommentId: {},
   loadingRepliesByCommentId: {},
-};
+});
 
+// 4. SLICE
 const commentsSlice = createSlice({
   name: "comments",
   initialState,
   reducers: {
     clearCommentsByPost(state, action) {
       const postId = action.payload;
+      const commentIds = state.byPostId[postId] || [];
+      commentsAdapter.removeMany(state, commentIds);
+      
       delete state.byPostId[postId];
       delete state.loadingByPostId[postId];
       delete state.errorByPostId[postId];
@@ -127,12 +138,14 @@ const commentsSlice = createSlice({
         const { postId, page, size, data } = action.payload;
         state.loadingByPostId[postId] = false;
         
-        // Cập nhật dữ liệu vào đúng ID bài viết
+        commentsAdapter.upsertMany(state, data);
+        const ids = data.map(c => c.id);
+
         if (page === 0) {
-          state.byPostId[postId] = data;
+          state.byPostId[postId] = ids;
         } else {
           const prevList = state.byPostId[postId] || [];
-          state.byPostId[postId] = [...prevList, ...data];
+          state.byPostId[postId] = [...prevList, ...ids];
         }
         
         state.pageByPostId[postId] = page;
@@ -153,25 +166,23 @@ const commentsSlice = createSlice({
         const { postId, data } = action.payload;
         state.submittingByPostId[postId] = false;
         if (data) {
+          commentsAdapter.upsertOne(state, data);
           const list = state.byPostId[postId] || [];
-          state.byPostId[postId] = [data, ...list];
+          state.byPostId[postId] = [data.id, ...list];
         }
       })
       .addCase(toggleCommentLike.fulfilled, (state, action) => {
-        const { postId, commentId, liked, likeCount } = action.payload;
-        const list = state.byPostId[postId];
-        if (list) {
-          const c = list.find(x => x.id === commentId);
-          if (c) {
-            c.likedByCurrentUser = !!liked;
-            c.likeCount = likeCount;
-          }
+        const { commentId, liked, likeCount } = action.payload;
+        if (state.entities[commentId]) {
+          state.entities[commentId].likedByCurrentUser = !!liked;
+          state.entities[commentId].likeCount = likeCount;
         }
       })
       .addCase(deleteComment.fulfilled, (state, action) => {
         const { postId, commentId } = action.payload;
+        commentsAdapter.removeOne(state, commentId);
         if (state.byPostId[postId]) {
-          state.byPostId[postId] = state.byPostId[postId].filter(c => c.id !== commentId);
+          state.byPostId[postId] = state.byPostId[postId].filter(id => id !== commentId);
         }
       })
 
@@ -183,7 +194,9 @@ const commentsSlice = createSlice({
       .addCase(fetchReplies.fulfilled, (state, action) => {
         const { commentId, data } = action.payload;
         state.loadingRepliesByCommentId[commentId] = false;
-        state.repliesByCommentId[commentId] = data;
+        
+        commentsAdapter.upsertMany(state, data);
+        state.repliesByCommentId[commentId] = data.map(r => r.id);
       })
       .addCase(fetchReplies.rejected, (state, action) => {
         const { commentId } = action.meta.arg;
@@ -195,13 +208,19 @@ const commentsSlice = createSlice({
 export const { clearCommentsByPost } = commentsSlice.actions;
 export default commentsSlice.reducer;
 
-export const selectCommentsByPostId = (state, postId) => state.comments.byPostId[postId] || [];
+// 5. SELECTORS
+export const selectCommentsByPostId = (state, postId) => {
+  const ids = state.comments.byPostId[postId] || [];
+  return ids.map(id => state.comments.entities[id]).filter(Boolean);
+};
 export const selectCommentsLoadingByPostId = (state, postId) => !!state.comments.loadingByPostId[postId];
 export const selectCommentsErrorByPostId = (state, postId) => state.comments.errorByPostId[postId];
 export const selectCommentSubmittingByPostId = (state, postId) => !!state.comments.submittingByPostId[postId];
 export const selectCommentsPageByPostId = (state, postId) => state.comments.pageByPostId[postId] ?? 0;
 export const selectCommentsHasMoreByPostId = (state, postId) => state.comments.hasMoreByPostId[postId] ?? true;
 
-// Replies selectors
-export const selectRepliesByCommentId = (state, commentId) => state.comments.repliesByCommentId[commentId] || [];
+export const selectRepliesByCommentId = (state, commentId) => {
+  const ids = state.comments.repliesByCommentId[commentId] || [];
+  return ids.map(id => state.comments.entities[id]).filter(Boolean);
+};
 export const selectRepliesLoadingByCommentId = (state, commentId) => !!state.comments.loadingRepliesByCommentId[commentId];

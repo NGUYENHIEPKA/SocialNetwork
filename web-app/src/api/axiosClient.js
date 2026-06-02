@@ -23,6 +23,17 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
+const handleUnauthorized = async () => {
+  removeToken();
+  try {
+    const { logout } = await import("../store/userSlice");
+    const { default: store } = await import("../app/store");
+    store.dispatch(logout());
+  } catch (err) {
+    console.error("Error during auto-logout dispatch:", err);
+  }
+};
+
 // Request Interceptor
 axiosClient.interceptors.request.use(
   (config) => {
@@ -94,27 +105,18 @@ axiosClient.interceptors.response.use(
             return axiosClient(originalRequest);
           } else {
             processQueue(new Error('Refresh API returned non-1000 code'));
-            removeToken();
-            if (window.location.pathname !== "/login") {
-              window.location.href = "/login";
-            }
+            handleUnauthorized();
           }
         } catch (refreshError) {
           processQueue(refreshError, null);
-          removeToken();
-          if (window.location.pathname !== "/login") {
-            window.location.href = "/login";
-          }
+          handleUnauthorized();
           return Promise.reject(refreshError);
         } finally {
           isRefreshing = false;
         }
       } else {
         isRefreshing = false;
-        removeToken();
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
+        handleUnauthorized();
       }
     }
 

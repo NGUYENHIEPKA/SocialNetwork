@@ -1,131 +1,79 @@
-import { useState, useMemo, useEffect, useRef } from "react";
-import { Heart, MessageCircle, Repeat2, Share, MoreHorizontal, Globe } from "lucide-react";
-import { Button } from "../ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { ImageViewer } from "../ImageViewer/ImageViewer.jsx";
-import likeApi from "@/api/likeApi";
-import repostApi from "@/api/repostApi";
-import postApi from "@/api/postApi";
+import { useState, useMemo, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { toggleRepost, syncLikeByOriginalId, deletePost } from "@/store/postsSlice";
 import { toast } from "sonner";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../ui/dropdown-menu";
-import { formatTimeAgo } from "../../utils/dateUtils.js"
+
+// Import subcomponents
+import { PostHeader } from "./PostHeader";
+import { PostMedia } from "./PostMedia";
+import { PostActions } from "./PostActions";
+import { PostTranslation } from "./PostTranslation";
+
+import { ImageViewer } from "../ImageViewer/ImageViewer.jsx";
 import ConfirmDeleteModal from "../Modals/ConfirmDeleteModal";
-import { Trash2, Link } from "lucide-react";
-import { UserHoverCard } from "../UserHoverCard/UserHoverCard";
-import { LikersTooltip } from "../LikersTooltip/LikersTooltip";
+import likeApi from "@/api/likeApi";
 import { franc } from "franc";
 
-// Map mã ngôn ngữ DeepL → tên tiếng Việt
-const LANG_NAMES = {
-  EN: "Anh", JA: "Nhật", KO: "Hàn", ZH: "Trung",
-  FR: "Pháp", DE: "Đức", ES: "Tây Ban Nha", IT: "Ý",
-  RU: "Nga", PT: "Bồ Đào Nha", NL: "Hà Lan", PL: "Ba Lan",
-  TH: "Thái", ID: "Indonesia", AR: "Ả Rập",
-};
-
 export function PostCard({ post, onProfileClick, onPostClick }) {
-
   const dispatch = useDispatch();
   const currentUserId = useSelector((s) => s.user?.profile?.userId);
-  // ====== THÔNG TIN CƠ BẢN (người repost) ======
+
+  // ====== THÔNG TIN CƠ BẢN ======
   const baseUsername = post.username ?? post.user?.username ?? "unknown";
   const baseFullName = post.fullName ?? post.user?.fullName ?? "Unknown";
   const baseAvatarUrl = post.avatarUrl ?? post.user?.avatarUrl;
   const createdAt = post.createdAt ?? post.created_time ?? post.created_at ?? null;
 
-  // ====== REPOST ======
+  // ====== REPOST LOGIC ======
   const isRepost = !!post.repostOfId;
-
-  // thông tin chính chủ bài gốc
-  // ID bài viết gốc 
   const originalPostId = post.repostOfId ?? post.id;
   const originalUsername = post.originalUsername;
   const originalFullName = post.originalFullName;
   const originalAvatarUrl = post.originalAvatarUrl;
 
-  // Nếu là repost, hiển thị thông tin chủ bài gốc
   const displayName = isRepost && originalFullName ? originalFullName : baseFullName || "Unknown";
   const handle = isRepost && originalUsername ? originalUsername : baseUsername || "unknown";
   const avatarUrl = isRepost && originalAvatarUrl ? originalAvatarUrl : baseAvatarUrl;
-
-  // Tên người repost
   const reposterName = baseFullName || baseUsername || "Unknown";
 
-  // list media
-  const mediaList = Array.isArray(post.mediaUrls)
-    ? post.mediaUrls.map((url, idx) => ({
-      id: idx,
-      mediaUrl: url,
-      mediaType: url?.includes(".mp4") ? "video" : "image",
-    }))
-    : [];
+  // ====== MEDIA LOGIC ======
+  const mediaList = useMemo(() => {
+    return Array.isArray(post.mediaUrls)
+      ? post.mediaUrls.map((url, idx) => ({
+          id: idx,
+          mediaUrl: url,
+          mediaType: url?.includes(".mp4") ? "video" : "image",
+        }))
+      : [];
+  }, [post.mediaUrls]);
 
   const mediaCount = mediaList.length;
 
-  // click mở fullscreen
+  // ====== STATE & MODALS ======
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerIndex, setViewerIndex] = useState(0);
-
-  // modal xóa bài viết
   const [openDelete, setOpenDelete] = useState(false);
 
-
-  // local UI state 
   const [isLiked, setIsLiked] = useState(post.liked ?? post.likedByCurrentUser ?? post.isLikedByCurrentUser ?? false);
   const [likes, setLikes] = useState(post.likeCount ?? 0);
   const [liking, setLiking] = useState(false);
+  
   const [isReposted, setIsReposted] = useState(post.repostedByCurrentUser ?? false);
   const [reposts, setReposts] = useState(post.repostCount ?? 0);
   const [reposting, setReposting] = useState(false);
-  const [repostMenuOpen, setRepostMenuOpen] = useState(false);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
-  // ====== TRANSLATE ======
-  const [translatedText, setTranslatedText] = useState(null);
-  const [detectedLang, setDetectedLang] = useState(null);
-  const [translating, setTranslating] = useState(false);
-  const [showTranslation, setShowTranslation] = useState(false);
-
-  // Detect ngôn ngữ bằng franc — hiện nút dịch nếu không phải tiếng Việt
-  const isNonVietnamese = useMemo(() => {
-    const content = isRepost ? post.originalContent : post.content;
-    if (!content || content.trim().length < 10) return false;
-    const lang = franc(content);
-    return lang !== "vie" && lang !== "und";
-  }, [post.content, post.originalContent, isRepost]);
-
-  const handleTranslate = async () => {
-    // Nếu đã có bản dịch thì toggle hiện/ẩn
-    if (translatedText) {
-      setShowTranslation((v) => !v);
-      return;
-    }
-    // Chưa có thì gọi API
-    setTranslating(true);
-    try {
-      const res = await postApi.translate(isRepost ? post.originalContent : post.content);
-      setTranslatedText(res?.result?.translatedText);
-      setDetectedLang(res?.result?.detectedSourceLang);
-      setShowTranslation(true);
-    } catch (err) {
-      toast.error("Dịch thất bại, thử lại sau");
-    } finally {
-      setTranslating(false);
-    }
-  };
-
+  // Sync state with props
   useEffect(() => {
     setIsLiked(post.liked ?? post.likedByCurrentUser ?? post.isLikedByCurrentUser ?? false);
     setLikes(post.likeCount ?? 0);
   }, [post.liked, post.likedByCurrentUser, post.isLikedByCurrentUser, post.likeCount]);
 
+  useEffect(() => {
+    setIsReposted(post.repostedByCurrentUser ?? false);
+    setReposts(post.repostCount ?? 0);
+  }, [post.repostedByCurrentUser, post.repostCount]);
+
+  // ====== ACTIONS ======
   const handleLike = async () => {
     if (liking) return;
     const id = originalPostId;
@@ -134,19 +82,16 @@ export function PostCard({ post, onProfileClick, onPostClick }) {
     const prevLiked = isLiked;
     const prevLikes = likes;
     const nextLiked = !isLiked;
-    const nextLikes = nextLiked
-      ? prevLikes + 1
-      : Math.max(0, prevLikes - 1);
+    const nextLikes = nextLiked ? prevLikes + 1 : Math.max(0, prevLikes - 1);
 
-    // optimistic UI
+    // Optimistic UI update
     setIsLiked(nextLiked);
     setLikes(nextLikes);
     setLiking(true);
 
     try {
       const res = await likeApi.togglePost(id);
-
-      if (typeof res?.liked === "boolean" && typeof res?.likeCount === "number") {
+      if (res && typeof res.liked === "boolean" && typeof res.likeCount === "number") {
         setIsLiked(res.liked);
         setLikes(res.likeCount);
         dispatch(
@@ -166,35 +111,30 @@ export function PostCard({ post, onProfileClick, onPostClick }) {
     }
   };
 
-  useEffect(() => {
-    setIsReposted(post.repostedByCurrentUser ?? false);
-    setReposts(post.repostCount ?? 0);
-  }, [post.repostedByCurrentUser, post.repostCount]);
-
   const handleRepostAction = async () => {
     if (reposting) return;
     const id = originalPostId;
     if (!id) return;
+
     const prevReposted = isReposted;
     const prevReposts = reposts;
+    
     setIsReposted(!prevReposted);
     setReposts(!prevReposted ? prevReposts + 1 : Math.max(0, prevReposts - 1));
-    setRepostMenuOpen(false);
+    setReposting(true);
 
     try {
       const result = await dispatch(toggleRepost(id)).unwrap();
       setIsReposted(result.reposted);
       setReposts(result.repostCount);
-
-      toast.success(result.reposted ? "Post reposted" : "Repost removed");
-
+      toast.success(result.reposted ? "Đã chia sẻ lại bài đăng" : "Đã hủy chia sẻ");
     } catch (err) {
       console.error("Repost action failed:", err);
-      toast.error(err || "Failed to process repost");
-
-      // 5. Rollback nếu lỗi
+      toast.error(err || "Thao tác chia sẻ thất bại");
       setIsReposted(prevReposted);
       setReposts(prevReposts);
+    } finally {
+      setReposting(false);
     }
   };
 
@@ -204,124 +144,36 @@ export function PostCard({ post, onProfileClick, onPostClick }) {
 
     try {
       await dispatch(deletePost(id)).unwrap();
-      toast.success("Post deleted");
+      toast.success("Đã xóa bài đăng thành công");
       setOpenDelete(false);
     } catch (err) {
       console.error("Delete post failed:", err);
-      toast.error("Failed to delete post, please try again");
+      toast.error("Không thể xóa bài đăng, vui lòng thử lại");
     }
   };
 
-
-  const formatNumber = (num) =>
-    num >= 1_000_000
-      ? (num / 1_000_000).toFixed(1) + "M"
-      : num >= 1_000
-        ? (num / 1_000).toFixed(1) + "K"
-        : String(num);
-
-  // Hàm mở trang chi tiết bài viết
   const handleOpenPost = () => {
     const id = post.id ?? post.postId;
     if (!id) return;
     onPostClick?.(id);
   };
 
-  // kích thước item khi nhiều media:
-  const multiSize = useMemo(() => {
-    if (mediaCount <= 1) return null;
-    if (mediaCount === 2) return { width: 250, height: 300 };
-    return { width: 180, height: 250 }; // 3 media trở lên
-  }, [mediaCount]);
-
-  // ----- drag-to-scroll -----
-  const mediaScrollRef = useRef(null);
-  const isDraggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const scrollLeftRef = useRef(0);
-  const hasDraggedRef = useRef(false); // flag phân biệt drag vs click
-
-  useEffect(() => {
-    const handleUp = () => {
-      const el = mediaScrollRef.current;
-      if (!isDraggingRef.current || !el) return;
-      isDraggingRef.current = false;
-      el.classList.remove("cursor-grabbing");
-    };
-
-    window.addEventListener("mouseup", handleUp);
-    window.addEventListener("mouseleave", handleUp);
-
-    return () => {
-      window.removeEventListener("mouseup", handleUp);
-      window.removeEventListener("mouseleave", handleUp);
-    };
-  }, []);
-
-  const handleMediaMouseDown = (e) => {
-    if (!mediaScrollRef.current) return;
-    if (e.button !== 0) return; // chỉ chuột trái
-
-    const el = mediaScrollRef.current;
-    isDraggingRef.current = true;
-    hasDraggedRef.current = false;
-    el.classList.add("cursor-grabbing");
-
-    startXRef.current = e.pageX - el.offsetLeft;
-    scrollLeftRef.current = el.scrollLeft;
+  const handleMediaClick = (idx) => {
+    setViewerIndex(idx);
+    setViewerOpen(true);
   };
 
-  const handleMediaMouseMove = (e) => {
-    const el = mediaScrollRef.current;
-    if (!isDraggingRef.current || !el) return;
-    e.preventDefault();
-    const x = e.pageX - el.offsetLeft;
-    const walk = x - startXRef.current;
-    if (Math.abs(walk) > 5) {
-      hasDraggedRef.current = true; // lệch > 5px thì là kéo
-    }
-    el.scrollLeft = scrollLeftRef.current - walk;
-  };
-
-  // ----- AUTO PLAY / PAUSE VIDEO -----
-  const cardRef = useRef(null);
-  useEffect(() => {
-    const root = cardRef.current;
-    if (!root) return;
-
-    const videos = root.querySelectorAll("video[data-autoplay]");
-    if (!videos.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const el = entry.target;
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.7) {
-            el.play().catch(() => { });
-          } else {
-            el.pause();
-          }
-        });
-      },
-      { threshold: [0, 0.7, 1] }
-    );
-
-    videos.forEach((el) => {
-      el.muted = true;
-      el.playsInline = true;
-      observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, [mediaCount]);
+  const isNonVietnamese = useMemo(() => {
+    const textContent = isRepost ? post.originalContent : post.content;
+    if (!textContent || textContent.trim().length < 10) return false;
+    const lang = franc(textContent);
+    return lang !== "vie" && lang !== "und";
+  }, [post.content, post.originalContent, isRepost]);
 
   const canDelete = !isRepost && post.userId && currentUserId && post.userId === currentUserId;
 
   return (
-    <div
-      ref={cardRef}
-      className="border-b border-border p-4 hover:bg-muted/50 transition-colors"
-    >
+    <div className="border-b border-border/40 p-4 hover:bg-muted/30 transition-colors duration-200">
       <style>
         {`
           .post-media-scroll {
@@ -331,390 +183,78 @@ export function PostCard({ post, onProfileClick, onPostClick }) {
           .post-media-scroll::-webkit-scrollbar {
             display: none;
           }
-
-          .post-media-video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            background-color: #000;
-          }
-          .post-media-video:fullscreen,
-          .post-media-video:-webkit-full-screen {
-            object-fit: contain;
-            background-color: #000;
-          }
         `}
       </style>
 
-      {/* X reposted */}
-      {isRepost && (
-        <div className="flex items-center gap-1 text-sm text-muted-foreground mb-1 pl-10">
-          <Repeat2 className="w-5 h-4" />
-          <button
-            className="hover:underline"
-            onClick={(e) => {
-              e.stopPropagation();
-              onProfileClick?.(baseUsername);
-            }}>
-            {reposterName}
-          </button>
-          reposted
-        </div>
-      )}
+      {/* Header component */}
+      <PostHeader
+        post={post}
+        avatarUrl={avatarUrl}
+        displayName={displayName}
+        handle={handle}
+        createdAt={createdAt}
+        canDelete={canDelete}
+        onProfileClick={onProfileClick}
+        onDeleteClick={() => setOpenDelete(true)}
+        isRepost={isRepost}
+        baseUsername={baseUsername}
+        reposterName={reposterName}
+      />
 
-      <div className="flex items-start gap-3">
-        {/* Avatar + click vào profile  */}
-        <button
-          className="p-0 h-auto rounded-full"
-          onClick={() => onProfileClick?.(handle)}
-          title={displayName}
-        >
-          <Avatar className="w-10 h-10">
-            <AvatarImage src={avatarUrl} alt={displayName} />
-            <AvatarFallback>{displayName?.charAt(0) || "U"}</AvatarFallback>
-          </Avatar>
-        </button>
+      {/* Main post contents */}
+      <div
+        className={`pl-13 ${onPostClick ? "cursor-pointer" : ""}`}
+        onClick={onPostClick ? handleOpenPost : undefined}
+      >
+        <p className="whitespace-pre-wrap text-[15px] leading-relaxed mt-1 text-foreground">
+          {isRepost ? post.originalContent : post.content}
+        </p>
 
-        {/* Xem chi tiết bài viết */}
-        <div
-          className={`flex-1 min-w-0 ${onPostClick ? "cursor-pointer" : ""}`}
-          onClick={onPostClick ? handleOpenPost : undefined}
-        >
-          {/* Header */}
-          <div className="flex items-center gap-2 mb-1">
-            <button
-              className="p-0 h-auto hover:underline"
-              onClick={(e) => {
-                e.stopPropagation();
-                onProfileClick?.(handle);
-              }}
-              title={displayName}
-            >
-              <UserHoverCard username={handle}>
-                <span className="font-medium">{displayName}</span>
-              </UserHoverCard>
-            </button>
-            <span className="text-muted-foreground">@{handle}</span>
-            <span className="text-muted-foreground">·</span>
-            <span
-              className="text-muted-foreground"
-              title={createdAt ? new Date(createdAt).toLocaleString() : ""}
-            >
-              {formatTimeAgo(createdAt)}
-            </span>
-            {/* More menu */}
-            <div className="ml-auto">
-              <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-2 h-auto"
-                    aria-label="More"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent
-                  align="end"
-                  sideOffset={8}
-                  className="w-37 bg-[#1e1e1e] border-[#2a2a2a] text-[15px] font-semibold p-1"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {canDelete && (
-                    <DropdownMenuItem
-                      className="cursor-pointer hover:bg-[#2a2a2a] focus:bg-[#2a2a2a] rounded-md px-3 py-2"
-                      onClick={() => {
-                        setOpenDelete(true);
-                        setMoreMenuOpen(false);
-                      }}
-
-                    >
-                      <div className="flex items-center gap-2">
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                        <span className="text-red-500">Delete post</span>
-                      </div>
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuItem
-                    className="cursor-pointer hover:bg-[#2a2a2a] focus:bg-[#2a2a2a] rounded-md px-3 py-2"
-                    onClick={() => {
-                      setMoreMenuOpen(false);
-                    }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Link className="w-4 h-4 text-white" />
-                      <span className="text-white">Copy link</span>
-                    </div>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-
-          {/* Content + media */}
-          <div className="mb-3">
-            <p className="whitespace-pre-wrap">
-              {isRepost ? post.originalContent : post.content}
-            </p>
-
-            {post.tags && post.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
-                {post.tags.map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/25 hover:bg-primary/20 transition-all cursor-pointer"
-                  >
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {/* Bản dịch — hiện khi user bấm dịch */}
-            {showTranslation && translatedText && (
-              <div className="mt-3 rounded-xl bg-muted/40 border border-border/50 px-3 py-2.5">
-                <p className="whitespace-pre-wrap text-sm text-foreground leading-relaxed">{translatedText}</p>
-                {detectedLang && (
-                  <div className="flex items-center gap-1 mt-2">
-                    <span className="text-xs text-muted-foreground">
-                      Đã dịch từ tiếng {LANG_NAMES[detectedLang] ?? detectedLang}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Nút dịch — chỉ hiện nếu franc detect không phải tiếng Việt */}
-            {isNonVietnamese && (
-              <button
-                onClick={(e) => { e.stopPropagation(); handleTranslate(); }}
-                disabled={translating}
-                className="mt-2 text-xs font-semibold text-blue-400 hover:text-blue-300 transition-colors disabled:opacity-40"
-              >
-                {translating
-                  ? "Đang dịch..."
-                  : showTranslation
-                    ? "Xem bản gốc"
-                    : "Dịch bài viết"}
-              </button>
-            )}
-
-            {/* PHẦN MEDIA */}
-            {mediaCount > 0 && (
-              <div className="mt-3 flex justify-center">
-                {mediaCount === 1 ? (
-                  // ======= 1 MEDIA =======
-                  (() => {
-                    const m = mediaList[0];
-                    const url = m.mediaUrl;
-
-                    if (m.mediaType === "video") {
-                      return (
-                        <video
-                          src={url}
-                          loop
-                          data-autoplay
-                          className="rounded-2xl border border-border/30 object-contain"
-                          style={{
-                            maxWidth: "min(680px, 90%)",
-                            maxHeight: "420px",
-                            width: "auto",
-                            height: "auto",
-                            backgroundColor: "#000",
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setViewerIndex(0);
-                            setViewerOpen(true);
-                          }}
-                        />
-                      );
-                    }
-
-                    return (
-                      <img
-                        src={url}
-                        className="rounded-2xl border border-border/30 object-contain"
-                        style={{
-                          maxWidth: "min(680px, 90%)",
-                          maxHeight: "420px",
-                          width: "auto",
-                          height: "auto",
-                        }}
-                        loading="lazy"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewerIndex(0);
-                          setViewerOpen(true);
-                        }}
-                      />
-                    );
-                  })()
-                ) : (
-                  // ======= NHIỀU MEDIA (2+) =======
-                  <div className="w-full flex justify-center">
-                    <div className="relative w-full max-w-[680px]">
-                      <div
-                        ref={mediaScrollRef}
-                        onMouseDown={handleMediaMouseDown}
-                        onMouseMove={handleMediaMouseMove}
-                        onDragStart={(e) => e.preventDefault()}
-                        className="post-media-scroll overflow-x-auto cursor-grab py-1"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <div className="flex gap-3 w-max mx-auto px-2">
-                          {mediaList.map((m, idx) => {
-                            const url = /^https?:\/\//i.test(m.mediaUrl)
-                              ? m.mediaUrl
-                              : `${import.meta.env.VITE_BACKEND_URL || ""}${m.mediaUrl}`;
-                            const isVideo = m.mediaType === "video";
-
-                            return (
-                              <div
-                                key={m.id ?? idx}
-                                className="relative flex-shrink-0 rounded-2xl overflow-hidden border border-border/30 bg-black"
-                                style={{
-                                  width: multiSize?.width ?? 240,
-                                  height: multiSize?.height ?? 340,
-                                }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (hasDraggedRef.current) return;
-                                  setViewerIndex(idx);
-                                  setViewerOpen(true);
-                                }}
-                              >
-                                {isVideo ? (
-                                  <video
-                                    src={url}
-                                    loop
-                                    data-autoplay
-                                    className="post-media-video rounded-2xl"
-                                  />
-                                ) : (
-                                  <img
-                                    src={url}
-                                    className="w-full h-full object-cover rounded-2xl"
-                                    loading="lazy"
-                                  />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            {/* -------- END MEDIA -------- */}
-          </div>
-
-          {/* Actions: like / comment / repost */}
-          <div className="flex items-center justify-between max-w-md">
-            {/* Like button — hover để xem danh sách người tim */}
-            <LikersTooltip
-              postId={originalPostId}
-              isLiked={isLiked}
-              likes={likes}
-              disabled={liking}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleLike();
-              }}
-            >
-              <Heart
-                className={`w-5 h-5 ${isLiked ? "text-red-500 fill-red-500" : "group-hover:text-red-500"
-                  }`}
-              />
+        {/* Tags */}
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
+            {post.tags.map((tag, idx) => (
               <span
-                className={`ml-1 text-sm ${isLiked ? "text-red-500" : "text-muted-foreground group-hover:text-red-500"
-                  }`}
+                key={idx}
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20 transition-all cursor-pointer"
               >
-                {formatNumber(likes)}
+                #{tag}
               </span>
-            </LikersTooltip>
-
-            {/* Comment: mở chi tiết bài viết */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-2 h-auto group"
-              aria-label="Comments"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenPost();
-              }}
-            >
-              <MessageCircle className="w-5 h-5 group-hover:text-blue-500 transition-colors" />
-              <span className="ml-1 text-sm text-muted-foreground group-hover:text-blue-500">
-                {formatNumber(post.commentCount ?? 0)}
-              </span>
-            </Button>
-
-            {/* Repost: mở menu repost */}
-            <DropdownMenu open={repostMenuOpen} onOpenChange={setRepostMenuOpen}>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="p-2 h-auto group"
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label="Repost"
-                >
-                  <Repeat2
-                    className={`w-5 h-5 ${isReposted ? "text-green-500" : "group-hover:text-green-500"
-                      }`}
-                  />
-                  <span
-                    className={`ml-1 text-sm ${isReposted
-                      ? "text-green-500"
-                      : "text-muted-foreground group-hover:text-green-500"
-                      }`}
-                  >
-                    {formatNumber(reposts)}
-                  </span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                sideOffset={8}
-                className="w-40 bg-[#1e1e1e] border-[#2a2a2a] text-[15px] font-semibold p-1"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <DropdownMenuItem
-                  className="cursor-pointer hover:bg-[#2a2a2a] focus:bg-[#2a2a2a] rounded-md px-3 py-2"
-                  onClick={handleRepostAction}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className={isReposted ? "text-red-500" : "text-white"}>
-                      {isReposted ? "Remove Repost" : "Repost"}
-                    </span>
-                    <Repeat2
-                      className={`w-4 h-4 ${isReposted ? "text-red-500" : "text-muted-foreground"
-                        }`}
-                    />
-                  </div>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            ))}
           </div>
-        </div>
+        )}
+
+        {/* Translation component */}
+        <PostTranslation isNonVietnamese={isNonVietnamese} content={isRepost ? post.originalContent : post.content} />
+
+        {/* Media rendering component */}
+        <PostMedia mediaList={mediaList} mediaCount={mediaCount} onMediaClick={handleMediaClick} />
+
+        {/* Actions buttons */}
+        <PostActions
+          postId={originalPostId}
+          isLiked={isLiked}
+          likes={likes}
+          commentCount={post.commentCount ?? 0}
+          isReposted={isReposted}
+          reposts={reposts}
+          liking={liking}
+          reposting={reposting}
+          onLike={handleLike}
+          onCommentClick={handleOpenPost}
+          onRepostAction={handleRepostAction}
+        />
       </div>
 
-      {/* ===== FULLSCREEN VIEWER ===== */}
+      {/* Lightbox / Image Viewer */}
       <ImageViewer
         open={viewerOpen}
         onClose={() => setViewerOpen(false)}
         mediaList={mediaList}
         index={viewerIndex}
       />
-      {/* ===== CONFIRM DELETE MODAL ===== */}
+
+      {/* Confirm deletion dialog */}
       <ConfirmDeleteModal
         open={openDelete}
         onClose={() => setOpenDelete(false)}
