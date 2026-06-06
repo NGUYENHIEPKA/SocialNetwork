@@ -187,9 +187,12 @@ public class StreakService {
         LocalDate today = LocalDate.now(VIETNAM_ZONE);
         LocalDate yesterday = today.minusDays(1);
 
-        // Lấy tất cả streak mà lastStreakDate không phải hôm qua (không tăng được hôm qua)
+        // Mất streak khi lastStreakDate < yesterday
+        // Tức là hôm qua cả hai không cùng nhắn đủ điều kiện tăng streak
+        // Ví dụ: lastStreakDate=05/06, đến 00:00 07/06: yesterday=06/06, 05/06 < 06/06 → mất ✅
+        //        lastStreakDate=06/06, đến 00:00 07/06: yesterday=06/06, 06/06 = yesterday → giữ ✅
         List<Streak> expiredStreaks = streakRepository
-                .findAllByLastStreakDateBeforeOrLastStreakDateIsNull(today.toString());
+                .findAllByLastStreakDateBeforeOrLastStreakDateIsNull(yesterday.toString());
 
         int resetCount = 0;
         for (Streak streak : expiredStreaks) {
@@ -236,12 +239,6 @@ public class StreakService {
     }
 
     // ==================== PRIVATE HELPERS ====================
-
-    /**
-     * Lưu một system message vào conversation và đẩy realtime cho cả 2 người.
-     * content  : nội dung hiển thị
-     * type     : "SYSTEM_STREAK_LOST" hoặc "SYSTEM_STREAK_RESTORED"
-     */
     private void saveSystemMessage(String conversationId, String content, String type) {
         try {
             Message sysMsg = Message.builder()

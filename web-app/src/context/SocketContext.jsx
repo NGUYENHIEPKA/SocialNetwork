@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
 import { getAccessToken } from '../api/localStorageService';
-import { receiveSocketMessage, receiveRevokeMessage, receiveEditMessage, markConversationRead, fetchConversations } from '../store/chatSlice';
+import { receiveSocketMessage, receiveRevokeMessage, receiveEditMessage, markConversationRead, fetchConversations, receiveReactionUpdate } from '../store/chatSlice';
 import { receiveNotification, removeNotification, updateNotificationItem } from '../store/notificationsSlice';
 import { setOnlineUsers, updateUserStatus } from '../store/onlineUsersSlice';
 import { receiveIncomingCall, setCallInProgress, endCallAction, setAnotherTabBusy } from '../store/callSlice';

@@ -50,6 +50,7 @@ export function PostComments({ postId, onProfileClick, onCommentCreated }) {
   const [expandedReplies, setExpandedReplies] = useState(new Set()); // commentId nào đang mở replies
   const loadMoreRef = useRef(null);
   const loadDelayRef = useRef(null); // delay trước khi load thêm
+  const initialLoadDoneRef = useRef(false); // tránh scroll-jump khi vừa mount
 
   // Build URL media
   const buildMediaUrl = (raw) => {
@@ -166,8 +167,20 @@ export function PostComments({ postId, onProfileClick, onCommentCreated }) {
   // ======== LOAD COMMENTS ========
   useEffect(() => {
     if (!postId) return;
+    initialLoadDoneRef.current = false;
     dispatch(fetchCommentsByPost({ postId, page: 0, size: PAGE_SIZE }));
   }, [postId, dispatch]);
+
+  // Đánh dấu initial load xong để observer có thể hoạt động
+  useEffect(() => {
+    if (!loadingComments && comments.length >= 0) {
+      // Delay nhỏ để DOM render xong rồi mới bật observer
+      const t = setTimeout(() => {
+        initialLoadDoneRef.current = true;
+      }, 500);
+      return () => clearTimeout(t);
+    }
+  }, [loadingComments]);
 
   // Auto load thêm khi cuộn tới cuối (infinite scroll, có delay)
   useEffect(() => {
@@ -179,15 +192,21 @@ export function PostComments({ postId, onProfileClick, onCommentCreated }) {
     const el = loadMoreRef.current;
     if (!el) return;
 
+    let isMounted = true;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
         if (!entry.isIntersecting) return;
+        if (!isMounted) return;
+        if (!initialLoadDoneRef.current) return;
         if (loadingComments || !hasMoreComments || commentsError) return;
 
         if (loadDelayRef.current) return;
 
         loadDelayRef.current = setTimeout(() => {
+          loadDelayRef.current = null;
+          if (!isMounted) return; // check lại sau khi timeout fire
           dispatch(
             fetchCommentsByPost({
               postId,
@@ -195,7 +214,6 @@ export function PostComments({ postId, onProfileClick, onCommentCreated }) {
               size: PAGE_SIZE,
             })
           );
-          loadDelayRef.current = null;
         }, 300);
       },
       {
@@ -207,6 +225,7 @@ export function PostComments({ postId, onProfileClick, onCommentCreated }) {
     observer.observe(el);
 
     return () => {
+      isMounted = false;
       observer.disconnect();
       if (loadDelayRef.current) {
         clearTimeout(loadDelayRef.current);

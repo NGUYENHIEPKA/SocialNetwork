@@ -398,10 +398,19 @@ const postsSlice = createSlice({
       })
 
       // fetchPostById
+      .addCase(fetchPostById.pending, (state) => {
+        state.loadingPostDetail = true;
+        state.postDetailId = null;
+        state.postDetailError = null;
+      })
       .addCase(fetchPostById.fulfilled, (state, action) => {
         state.loadingPostDetail = false;
         postsAdapter.upsertOne(state, action.payload);
         state.postDetailId = action.payload.id || action.payload.postId;
+      })
+      .addCase(fetchPostById.rejected, (state, action) => {
+        state.loadingPostDetail = false;
+        state.postDetailError = action.payload || action.error?.message;
       })
 
       // fetchTrendingTags

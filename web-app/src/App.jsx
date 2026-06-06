@@ -32,6 +32,10 @@ export default function App() {
   // Set dark mode by default and verify token on initial load
   useEffect(() => {
     document.documentElement.classList.add('dark');
+    // Tắt browser scroll restoration để React Router tự quản lý
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
     const token = getAccessToken();
     if (token) {
       dispatch(verifyToken());

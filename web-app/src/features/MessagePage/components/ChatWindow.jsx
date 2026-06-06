@@ -430,7 +430,11 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
               <Spinner className="w-8 h-8 text-gray-500" />
             </div>
           ) : messages && messages.length > 0 ? (
-            messages.map((msg) => (
+            messages.map((msg, index) => {
+              const nextMsg = messages[index + 1];
+              const getSenderId = (m) => m?.sender?.id || m?.sender?.userId || m?.senderId;
+              const isLastInGroup = !nextMsg || !!nextMsg.type || (getSenderId(nextMsg) !== getSenderId(msg));
+              return (
               <div key={msg.id} className="space-y-1">
 
                 {/* System message — mất streak */}
@@ -484,7 +488,7 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                         Tin nhắn đã bị thu hồi
                       </div>
                     ) : (
-                      <div className="relative group flex flex-col items-inherit">
+                      <div className={`relative group flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}>
                         <div className={`flex items-center gap-2 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                           {/* Controls (Smile, Pencil, Revoke) */}
                           {!msg.content?.startsWith("📞 Cuộc gọi") && (
@@ -523,13 +527,42 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
 
                           {/* Message Content Bubble */}
                           {msg.content && !msg.content.startsWith("📞 Cuộc gọi") && (
-                            <div
-                              title={msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
-                              className={`px-4 py-2 rounded-2xl break-words relative ${msg.media && msg.media.length > 0 ? "mb-2" : ""} ${msg.isMe ? "bg-[#0095f6] text-white" : "bg-[#262626] text-white"}`}
-                            >
-                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                              {msg.isEdited && (
-                                <span className="text-[9px] opacity-60 block mt-1">(đã chỉnh sửa)</span>
+                            <div className="relative">
+                              <div
+                                className={`px-4 pt-2 pb-1.5 rounded-2xl break-words ${
+                                  msg.reactions && Object.keys(msg.reactions).length > 0 ? "mb-3" : ""
+                                } ${msg.media && msg.media.length > 0 ? "mb-2" : ""} ${msg.isMe ? "bg-[#0095f6] text-white" : "bg-[#262626] text-white"}`}
+                              >
+                                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                {msg.isEdited && (
+                                  <span className="text-[9px] opacity-60 block">(đã chỉnh sửa)</span>
+                                )}
+                                {/* Timestamp trong bubble — chỉ tin cuối nhóm */}
+                                {msg.createdAt && isLastInGroup && (
+                                  <span className={`text-[10px] opacity-50 block mt-0.5 ${msg.isMe ? 'text-right' : 'text-left'}`}>
+                                    {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                )}
+                              </div>
+                              {/* Reactions — iMessage style, góc dưới bubble */}
+                              {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                                <div className={`absolute -bottom-1 flex gap-0.5 ${msg.isMe ? '-right-2' : '-left-2'}`}>
+                                  {Object.entries(
+                                    Object.values(msg.reactions).reduce((acc, emoji) => {
+                                      acc[emoji] = (acc[emoji] || 0) + 1;
+                                      return acc;
+                                    }, {})
+                                  ).map(([emoji, count]) => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => handleReact(msg.id, emoji)}
+                                      className={`flex items-center justify-center gap-0.5 w-5 h-5 rounded-full border-2 border-black text-xs shadow-lg hover:scale-110 transition-transform ${msg.reactions?.[profile?.id || profile?.userId] === emoji ? 'bg-[#3a3a3a]' : 'bg-[#2a2a2a]'}`}
+                                    >
+                                      <span className="leading-none text-xs">{emoji}</span>
+                                      {count > 1 && <span className="text-[9px] font-bold text-white leading-none">{count}</span>}
+                                    </button>
+                                  ))}
+                                </div>
                               )}
                             </div>
                           )}
@@ -592,34 +625,14 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                             ))}
                           </div>
                         )}
-
-                        {/* Reactions Display */}
-                        {msg.reactions && Object.keys(msg.reactions).length > 0 && (
-                          <div className={`flex flex-wrap gap-1 mt-1 ${msg.isMe ? 'justify-end' : 'justify-start'}`}>
-                            {Object.entries(
-                              Object.values(msg.reactions).reduce((acc, emoji) => {
-                                acc[emoji] = (acc[emoji] || 0) + 1;
-                                return acc;
-                              }, {})
-                            ).map(([emoji, count]) => (
-                              <button
-                                key={emoji}
-                                onClick={() => handleReact(msg.id, emoji)}
-                                className={`flex items-center gap-1 bg-[#1a1a1a] border border-[#333] rounded-full px-1.5 py-0.5 text-[10px] hover:bg-[#262626] transition-colors ${msg.reactions?.[profile?.id || profile?.userId] === emoji ? 'border-blue-500/50 bg-blue-500/10' : ''}`}
-                              >
-                                <span>{emoji}</span>
-                                {count > 1 && <span className="font-medium">{count}</span>}
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     )}
                   </div>
                 </div>
                 )}
               </div>
-            ))
+            );
+          })
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center text-center text-gray-400 p-6">
               <p className="mb-2 text-lg">No messages found</p>

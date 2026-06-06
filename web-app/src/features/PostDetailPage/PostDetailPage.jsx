@@ -21,6 +21,7 @@ export function PostDetailPage() {
   // ======== LOAD POST ========
   useEffect(() => {
     if (!postId) return;
+    window.scrollTo({ top: 0, behavior: "instant" });
     dispatch(fetchPostById(postId));
   }, [postId, dispatch]);
 
