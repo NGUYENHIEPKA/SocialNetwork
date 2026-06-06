@@ -3,6 +3,7 @@ import { Phone, Video, Camera, Info, Smile, Mic, Image, Heart, Send, X, RotateCc
 import EmojiPicker from "emoji-picker-react";
 import { messageApi } from "../../../api/messageApi";
 import mediaApi from "../../../api/mediaApi";
+import streakApi from "../../../api/streakApi";
 import { Spinner } from "../../../components/ui/spinner";
 import { showUnderDevelopmentToast } from "../../../utils/commonUtils";
 
@@ -44,6 +45,7 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
 
   const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [streak, setStreak] = useState(null);
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerMediaList, setViewerMediaList] = useState([]);
@@ -77,6 +79,16 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
         };
         return [...prev, newMessage];
       });
+
+      // Nếu là system message mất streak → fetch lại streak ngay để có canRestore mới nhất
+      if (incomingMessage.type === "SYSTEM_STREAK_LOST" || incomingMessage.type === "SYSTEM_STREAK_RESTORED") {
+        streakApi.getStreak(conversation.id)
+          .then(res => {
+            const data = res.data || res;
+            if (data.code === 1000) setStreak(data.result);
+          })
+          .catch(() => {});
+      }
     }
   }, [incomingMessage, conversation, profile]);
 
@@ -100,6 +112,46 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
       setMessages((prev) => prev.map(m => m.id === reactionUpdate.id ? { ...m, reactions: reactionUpdate.reactions } : m));
     }
   }, [reactionUpdate, conversation]);
+
+  // Fetch streak khi mở conversation DIRECT
+  useEffect(() => {
+    const fetchStreak = async () => {
+      if (!conversation?.id || conversation.id.startsWith("temp_")) {
+        setStreak(null);
+        return;
+      }
+      try {
+        const res = await streakApi.getStreak(conversation.id);
+        const data = res.data || res;
+        if (data.code === 1000) setStreak(data.result);
+      } catch (err) {
+        // Group chat hoặc lỗi khác — không hiện streak
+        setStreak(null);
+      }
+    };
+    fetchStreak();
+  }, [conversation]);
+
+  // Lắng nghe realtime streak_updated
+  useEffect(() => {
+    if (!socket || !conversation?.id) return;
+    const handleStreakUpdated = (data) => {
+      if (data) setStreak(data);
+    };
+    socket.on("streak_updated", handleStreakUpdated);
+    return () => socket.off("streak_updated", handleStreakUpdated);
+  }, [socket, conversation?.id]);
+
+  const handleRestoreStreak = async () => {
+    if (!conversation?.id) return;
+    try {
+      const res = await streakApi.restoreStreak(conversation.id);
+      const data = res.data || res;
+      if (data.code === 1000) setStreak(data.result);
+    } catch (err) {
+      console.error("Failed to restore streak:", err);
+    }
+  };
 
   const handleRevokeMessage = async (messageId) => {
     try {
@@ -338,8 +390,11 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
               </div>
             )}
             <div>
-              <h3 className="font-medium">
+              <h3 className="font-medium flex items-center gap-2">
                 {conversation?.user?.displayName || "Chưa chọn cuộc trò chuyện"}
+                {streak && streak.streakCount > 0 && (
+                  <span className="text-orange-400 text-sm font-semibold">🔥 {streak.streakCount}</span>
+                )}
               </h3>
             </div>
           </div>
@@ -377,6 +432,33 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
           ) : messages && messages.length > 0 ? (
             messages.map((msg) => (
               <div key={msg.id} className="space-y-1">
+
+                {/* System message — mất streak */}
+                {msg.type === "SYSTEM_STREAK_LOST" && (
+                  <div className="flex items-center justify-center gap-2 my-2">
+                    <span className="text-sm text-gray-400">{msg.content}</span>
+                    {/* Chỉ hiện nút Khôi phục trên message SYSTEM_STREAK_LOST cuối cùng */}
+                    {streak?.canRestore &&
+                      messages.filter(m => m.type === "SYSTEM_STREAK_LOST").pop()?.id === msg.id && (
+                      <button
+                        onClick={handleRestoreStreak}
+                        className="text-sm text-orange-400 font-semibold hover:text-orange-300 transition-colors"
+                      >
+                        Khôi phục
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* System message — khôi phục streak */}
+                {msg.type === "SYSTEM_STREAK_RESTORED" && (
+                  <div className="flex items-center justify-center my-2">
+                    <span className="text-sm text-green-400">{msg.content}</span>
+                  </div>
+                )}
+
+                {/* Tin nhắn bình thường */}
+                {!msg.type && (
                 <div className={`flex ${msg.isMe ? "justify-end" : "justify-start"}`}>
                   {!msg.isMe && (
                     <div className="mr-2 mt-1 flex-shrink-0">
@@ -535,6 +617,7 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                     )}
                   </div>
                 </div>
+                )}
               </div>
             ))
           ) : (

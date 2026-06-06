@@ -26,6 +26,7 @@ public class Message {
     String senderId;
     String content;
     List<MediaInfo> media;
+    String type;
 
     @Builder.Default
     boolean isRevoked = false;
