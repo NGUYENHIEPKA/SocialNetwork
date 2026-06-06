@@ -119,22 +119,30 @@ export function PostMedia({ mediaList, mediaCount, onMediaClick }) {
           }
 
           return (
-            <img
-              src={url}
-              alt="Post media"
-              className="rounded-2xl border border-border/30 object-contain shadow-md cursor-pointer hover:opacity-95 transition-opacity"
+            <div 
+              className="overflow-hidden rounded-2xl border border-border/30 shadow-md cursor-pointer"
               style={{
                 maxWidth: "min(680px, 100%)",
                 maxHeight: "420px",
-                width: "auto",
-                height: "auto",
               }}
-              loading="lazy"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMediaClick?.(0);
-              }}
-            />
+            >
+              <img
+                src={url}
+                alt="Post media"
+                className="object-contain transition-transform duration-500 hover:scale-[1.03]"
+                style={{
+                  maxWidth: "100%",
+                  maxHeight: "420px",
+                  width: "auto",
+                  height: "auto",
+                }}
+                loading="lazy"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMediaClick?.(0);
+                }}
+              />
+            </div>
           );
         })()
       ) : (
@@ -158,7 +166,7 @@ export function PostMedia({ mediaList, mediaCount, onMediaClick }) {
                   return (
                     <div
                       key={m.id ?? idx}
-                      className="relative flex-shrink-0 rounded-2xl overflow-hidden border border-border/30 bg-black shadow-md cursor-pointer hover:scale-[1.01] transition-transform duration-200"
+                      className="relative flex-shrink-0 rounded-2xl overflow-hidden border border-border/30 bg-black shadow-md cursor-pointer group"
                       style={{
                         width: multiSize?.width ?? 240,
                         height: multiSize?.height ?? 340,
@@ -174,13 +182,13 @@ export function PostMedia({ mediaList, mediaCount, onMediaClick }) {
                           src={url}
                           loop
                           data-autoplay
-                          className="w-full h-full object-cover rounded-2xl"
+                          className="w-full h-full object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
                         />
                       ) : (
                         <img
                           src={url}
                           alt={`Post media multiple ${idx}`}
-                          className="w-full h-full object-cover rounded-2xl"
+                          className="w-full h-full object-cover rounded-2xl transition-transform duration-500 group-hover:scale-105"
                           loading="lazy"
                         />
                       )}
