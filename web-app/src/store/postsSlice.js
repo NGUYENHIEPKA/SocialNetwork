@@ -281,6 +281,7 @@ const postsSlice = createSlice({
         postsAdapter.upsertOne(state, post);
         state.feedIds = [post.id || post.postId, ...state.feedIds];
         state.creating = false;
+        state.lastMutatedAt = Date.now();
       })
       .addCase(createPost.rejected, (state, action) => {
         state.creating = false;
@@ -290,7 +291,7 @@ const postsSlice = createSlice({
       // deletePost
       .addCase(deletePost.fulfilled, (state, action) => {
         const { postId } = action.payload;
-        
+
         // Find reposts to delete
         const repostIdsToRemove = Object.values(state.entities)
           .filter((p) => p && p.repostOfId === postId)
@@ -312,6 +313,7 @@ const postsSlice = createSlice({
         if (state.postDetailId === postId || repostIdsToRemove.includes(state.postDetailId)) {
           state.postDetailId = null;
         }
+        state.lastMutatedAt = Date.now();
       })
 
       // toggleRepost
@@ -448,6 +450,7 @@ export const selectPostsCreating = (state) => state.posts.creating;
 export const selectPostsHasMore = (state) => state.posts.hasMore;
 export const selectPostsPage = (state) => state.posts.page;
 export const selectPostsError = (state) => state.posts.error;
+export const selectLastMutatedAt = (state) => state.posts.lastMutatedAt;
 
 export const selectTrendingTags = (state) => state.posts.trendingTags;
 export const selectTrendingLoading = (state) => state.posts.loadingTrending;

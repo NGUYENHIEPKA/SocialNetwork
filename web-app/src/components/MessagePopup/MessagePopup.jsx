@@ -96,7 +96,7 @@ export function MessagePopup() {
           </div>
 
           {/* Messages List */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto chat-scroll">
             {loading ? (
                 <div className="flex items-center justify-center h-full text-gray-500">Loading...</div>
             ) : conversations.length === 0 ? (

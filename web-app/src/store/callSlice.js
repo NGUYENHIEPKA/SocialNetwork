@@ -25,7 +25,15 @@ const callSlice = createSlice({
       // Lọc theo ID: Chỉ update nếu khớp ID cuộc gọi hiện tại
       if (state.callData && action.payload && state.callData.id === action.payload.id) {
         state.callStatus = 'IN_PROGRESS';
-        state.callData = { ...state.callData, ...action.payload };
+        // Giữ lại tên/avatar đã có, không để backend overwrite bằng null
+        state.callData = {
+          ...state.callData,
+          ...action.payload,
+          callerName: state.callData.callerName || action.payload.callerName,
+          callerAvatar: state.callData.callerAvatar || action.payload.callerAvatar,
+          otherUserName: state.callData.otherUserName || action.payload.otherUserName,
+          otherUserAvatar: state.callData.otherUserAvatar || action.payload.otherUserAvatar,
+        };
       }
     },
     endCallAction: (state, action) => {

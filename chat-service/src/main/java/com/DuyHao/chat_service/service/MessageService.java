@@ -4,6 +4,7 @@ import com.DuyHao.chat_service.dto.RealtimeMessage;
 import com.DuyHao.chat_service.dto.request.MessageRequest;
 import com.DuyHao.chat_service.dto.response.MessageResponse;
 import com.DuyHao.chat_service.dto.response.UserProfileResponse;
+import com.DuyHao.chat_service.dto.response.StreakResponse;
 import com.DuyHao.chat_service.entity.Conversation;
 import com.DuyHao.chat_service.entity.Message;
 import com.DuyHao.chat_service.repository.ConversationRepository;
@@ -32,6 +33,7 @@ public class MessageService {
     ProfileClient profileClient;
     MediaClient mediaClient;
     RedisPublisherService redisPublisherService;
+    StreakService streakService;
 
     public List<MessageResponse> getMessages(String conversationId) {
         String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
@@ -103,6 +105,25 @@ public class MessageService {
         }
 
         MessageResponse response = toMessageResponse(message, currentUserId);
+
+        // Cập nhật streak nếu là chat DIRECT (group chat không tính streak)
+        if ("DIRECT".equals(conversation.getType())) {
+            try {
+                streakService.onMessageSent(conversation.getId(), currentUserId);
+
+                // Lấy streak mới nhất và đẩy realtime cho cả hai người biết
+                StreakResponse streakResponse = streakService.getStreak(conversation.getId());
+                RealtimeMessage streakMessage = RealtimeMessage.builder()
+                        .toRoomId(conversation.getId())
+                        .type("streak_updated")
+                        .payload(streakResponse)
+                        .build();
+                redisPublisherService.publish(streakMessage);
+            } catch (Exception e) {
+                // Lỗi streak không được ảnh hưởng đến việc gửi tin nhắn
+                log.error("[STREAK] Lỗi cập nhật streak cho conversation {}: {}", conversation.getId(), e.getMessage());
+            }
+        }
 
         // Push to room via Redis Pub/Sub
         RealtimeMessage rtMessage = RealtimeMessage.builder()
@@ -272,15 +293,20 @@ public class MessageService {
                 .isRevoked(message.isRevoked())
                 .isEdited(message.isEdited())
                 .reactions(message.getReactions())
+                .type(message.getType())
                 .build();
 
         try {
-            UserProfileResponse profile = profileClient.getProfile(message.getSenderId());
-            if (profile != null) {
-                response.setSender(MessageResponse.SenderInfo.builder()
-                        .id(profile.getUserId())
-                        .fullName(profile.getFullName())
-                        .build());
+            // Bỏ qua fetch profile cho system message
+            if (!"SYSTEM".equals(message.getSenderId())) {
+                UserProfileResponse profile = profileClient.getProfile(message.getSenderId());
+                if (profile != null) {
+                    response.setSender(MessageResponse.SenderInfo.builder()
+                            .id(profile.getUserId())
+                            .fullName(profile.getFullName())
+                            .avatarUrl(profile.getAvatarUrl())
+                            .build());
+                }
             }
         } catch (Exception e) {
             log.error("Failed to fetch sender profile: {}", e.getMessage());

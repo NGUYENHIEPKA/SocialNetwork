@@ -4,8 +4,10 @@ import com.DuyHao.chat_service.dto.RealtimeMessage;
 import com.DuyHao.chat_service.dto.request.CallRequest;
 import com.DuyHao.chat_service.dto.request.MessageRequest;
 import com.DuyHao.chat_service.dto.response.CallResponse;
+import com.DuyHao.chat_service.dto.response.UserProfileResponse;
 import com.DuyHao.chat_service.entity.CallSession;
 import com.DuyHao.chat_service.repository.CallRepository;
+import com.DuyHao.chat_service.repository.httpClient.ProfileClient;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -28,6 +30,7 @@ public class CallService {
     RedisPublisherService redisPublisherService;
     MessageService messageService;
     StringRedisTemplate redisTemplate;
+    ProfileClient profileClient;
 
     private static final String ONLINE_USERS_KEY = "user:online:set";
 
@@ -69,11 +72,23 @@ public class CallService {
         session.setStatus("RINGING");
         session = callRepository.save(session);
 
+        // Lấy thông tin caller để hiển thị trên màn hình người nhận
+        CallResponse incomingPayload = toCallResponse(session);
+        try {
+            UserProfileResponse callerProfile = profileClient.getProfile(currentUserId);
+            if (callerProfile != null) {
+                incomingPayload.setCallerName(callerProfile.getFullName());
+                incomingPayload.setCallerAvatar(callerProfile.getAvatarUrl());
+            }
+        } catch (Exception e) {
+            log.warn("Could not fetch caller profile for incoming_call: {}", e.getMessage());
+        }
+
         // Notify callee via Redis Pub/Sub -> Realtime Service -> Socket.IO
         RealtimeMessage rtMessage = RealtimeMessage.builder()
                 .toUserId(request.getCalleeId())
                 .type("incoming_call")
-                .payload(toCallResponse(session))
+                .payload(incomingPayload)
                 .build();
         redisPublisherService.publish(rtMessage);
 
@@ -208,8 +223,8 @@ public class CallService {
         
         for (CallSession session : activeSessions) {
             try {
-                // 1. RINGING Timeout (2 minutes)
-                if ("RINGING".equals(session.getStatus()) && session.getCreatedAt().plusMinutes(2).isBefore(now)) {
+                // 1. RINGING Timeout (70 giây = 60s frontend timeout + 10s buffer)
+                if ("RINGING".equals(session.getStatus()) && session.getCreatedAt().plusSeconds(70).isBefore(now)) {
                     log.info("Cleaning up RINGING session {} due to timeout", session.getId());
                     cancelCall(session.getId());
                     continue;

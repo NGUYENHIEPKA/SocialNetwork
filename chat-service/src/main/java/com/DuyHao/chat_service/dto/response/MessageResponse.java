@@ -23,6 +23,8 @@ public class MessageResponse {
     boolean isEdited;
     java.util.Map<String, String> reactions;
     SenderInfo sender;
+    // Loại tin nhắn: null = bình thường, "SYSTEM_STREAK_LOST", "SYSTEM_STREAK_RESTORED"
+    String type;
 
     @Data
     @Builder

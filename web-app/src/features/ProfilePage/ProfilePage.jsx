@@ -149,7 +149,6 @@ export function ProfilePage() {
       });
   }, [isOwnProfile, otherProfile?.userId]);
 
-  // Đóng avatar menu khi click ngoài
   useEffect(() => {
     if (!avatarMenuOpen) return;
     const handleClickOutside = (e) => {
@@ -657,6 +656,7 @@ export function ProfilePage() {
             </div>
           )}
         </TabsContent>
+
       </Tabs>
 
       {/* ImageViewer để xem ảnh đại diện */}
@@ -674,7 +674,7 @@ export function ProfilePage() {
             userId: user?.userId,
             fullName: user?.displayName,
             avatarUrl: user?.avatar,
-            stories: isOwnProfile ? myStories : userStories, //truyền myStories nếu own profile, userStories nếu người khác
+            stories: isOwnProfile ? myStories : userStories,
           }]}
           startIndex={0}
           onClose={() => setStoryViewerOpen(false)}

@@ -12,4 +12,5 @@ public class UserProfileResponse {
     String userId;
     String fullName;
     String city;
+    String avatarUrl;
 }

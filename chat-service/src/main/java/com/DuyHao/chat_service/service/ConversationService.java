@@ -231,7 +231,7 @@ public class ConversationService {
                             UserProfileResponse profile = profileClient.getProfile(partner.getUserId());
                             if (profile != null) {
                                 response.setConversationName(profile.getFullName());
-                                // response.setConversationAvatar(profile.getAvatarUrl()); // Avatar missing in profile-service currently
+                                response.setConversationAvatar(profile.getAvatarUrl());
                                 response.setPartnerId(profile.getUserId());
 
                                 // Check online status from Redis

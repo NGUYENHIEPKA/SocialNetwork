@@ -245,7 +245,7 @@ export function ConversationSidebar({
       </div>
 
       {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto chat-scroll">
         {conversationsLoading ? (
           <div className="p-4 flex items-center justify-center">
             <Spinner className="w-5 h-5 text-gray-400" />

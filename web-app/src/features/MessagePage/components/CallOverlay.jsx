@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Phone, PhoneOff, Video, VideoOff, Mic, MicOff, User, MonitorUp } from 'lucide-react';
 import { messageApi } from '../../../api/messageApi';
 import { endCallAction, setCallInProgress } from '../../../store/callSlice';
 import { useWebRTC } from '../../../hooks/useWebRTC';
 import { getAccessToken } from '../../../api/localStorageService';
+import callingSrc from '../../../assets/sounds/calling.mp3';
+import ringtoneSrc from '../../../assets/sounds/ringtone.mp3';
 
 export const CallOverlay = () => {
     const { callStatus, callData } = useSelector((state) => state.call);
@@ -14,6 +16,54 @@ export const CallOverlay = () => {
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
     const [timer, setTimer] = useState(0);
+
+    // Sound refs
+    const callingAudioRef = useRef(null);
+    const ringtoneAudioRef = useRef(null);
+
+    // Play calling sound (người gọi nghe) khi CALLING
+    useEffect(() => {
+        if (callStatus === 'CALLING') {
+            const audio = new Audio(callingSrc);
+            audio.loop = true;
+            audio.volume = 0.7;
+            audio.play().catch(() => {});
+            callingAudioRef.current = audio;
+        } else {
+            if (callingAudioRef.current) {
+                callingAudioRef.current.pause();
+                callingAudioRef.current = null;
+            }
+        }
+        return () => {
+            if (callingAudioRef.current) {
+                callingAudioRef.current.pause();
+                callingAudioRef.current = null;
+            }
+        };
+    }, [callStatus]);
+
+    // Play ringtone (người nhận nghe) khi INCOMING
+    useEffect(() => {
+        if (callStatus === 'INCOMING') {
+            const audio = new Audio(ringtoneSrc);
+            audio.loop = true;
+            audio.volume = 0.8;
+            audio.play().catch(() => {});
+            ringtoneAudioRef.current = audio;
+        } else {
+            if (ringtoneAudioRef.current) {
+                ringtoneAudioRef.current.pause();
+                ringtoneAudioRef.current = null;
+            }
+        }
+        return () => {
+            if (ringtoneAudioRef.current) {
+                ringtoneAudioRef.current.pause();
+                ringtoneAudioRef.current = null;
+            }
+        };
+    }, [callStatus]);
 
     const handleAccept = async () => {
         try {
@@ -35,12 +85,20 @@ export const CallOverlay = () => {
     };
 
     const handleCancel = useCallback(async () => {
+        // Thử gọi API hủy cuộc gọi, nếu fail thì thử lại 1 lần
         try {
             await messageApi.cancelCall(callData.id);
-            dispatch(endCallAction(callData));
         } catch (error) {
-            console.error("Failed to cancel call:", error);
+            console.warn("Hủy cuộc gọi lần 1 thất bại, thử lại...", error);
+            try {
+                await messageApi.cancelCall(callData.id);
+            } catch (retryError) {
+                // Cả 2 lần đều fail, server sẽ tự dọn session sau timeout
+                console.error("Hủy cuộc gọi thất bại sau 2 lần:", retryError);
+            }
         }
+        // Dù API thành công hay fail, vẫn tắt UI
+        dispatch(endCallAction(callData));
     }, [callData, dispatch]);
 
     const handleEndCall = useCallback(async () => {
@@ -52,12 +110,17 @@ export const CallOverlay = () => {
         }
     }, [callData, dispatch]);
 
-    const handlePeerDisconnectLocal = useCallback(() => {
-        if (callStatus === 'IN_PROGRESS' || callStatus === 'CALLING') {
-            console.log("Ending call due to peer disconnection");
-            dispatch(endCallAction());
+    const handlePeerDisconnectLocal = useCallback(async () => {
+        if (callStatus === 'IN_PROGRESS' && callData?.id) {
+            try {
+                await messageApi.endCall(callData.id); // Báo server đóng session
+            } catch (error) {
+                console.error("Kết thúc cuộc gọi thất bại khi peer mất kết nối:", error);
+            }
         }
-    }, [callStatus, dispatch]);
+        // Dù API thành công hay fail, vẫn tắt UI
+        dispatch(endCallAction());
+    }, [callStatus, callData, dispatch]);
 
     const {
         localVideoRef,
@@ -83,6 +146,9 @@ export const CallOverlay = () => {
                     url = `${baseUrl}/chat/calls/cancel/${callData.id}`;
                 } else if (callStatus === 'IN_PROGRESS') {
                     url = `${baseUrl}/chat/calls/end/${callData.id}`;
+                } else if (callStatus === 'INCOMING') {
+                    // Callee đóng tab khi chuông đang reo → tự động từ chối
+                    url = `${baseUrl}/chat/calls/reject/${callData.id}`;
                 }
 
                 if (url) {
@@ -143,6 +209,15 @@ export const CallOverlay = () => {
     const otherUserId = isCaller ? callData.calleeId : callData.callerId;
     const callType = callData.type === 'VIDEO' ? 'Video' : 'Audio';
 
+    // - Nếu là người GỌI: dùng otherUserName/otherUserAvatar (set từ ChatWindow)
+    // - Nếu là người NHẬN: dùng callerName/callerAvatar (gửi từ backend)
+    const otherUserName = isCaller
+        ? (callData.otherUserName || `User ${otherUserId}`)
+        : (callData.callerName || `User ${otherUserId}`);
+    const otherUserAvatar = isCaller
+        ? callData.otherUserAvatar
+        : callData.callerAvatar;
+
     return (
         <div className={`fixed inset-0 z-[100] flex flex-col items-center justify-center text-white backdrop-blur-md ${callStatus === 'INCOMING' || callStatus === 'CALLING' ? 'bg-black/95' : 'bg-gray-900/95'}`}>
 
@@ -153,12 +228,16 @@ export const CallOverlay = () => {
                         {/* Ripple effect */}
                         <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-75"></div>
                         <div className="relative w-full h-full bg-gray-800 rounded-full flex items-center justify-center overflow-hidden border-4 border-blue-500 z-10">
-                            <User size={64} className="text-gray-400" />
+                            {otherUserAvatar ? (
+                                <img src={otherUserAvatar} alt={otherUserName} className="w-full h-full object-cover" />
+                            ) : (
+                                <User size={64} className="text-gray-400" />
+                            )}
                         </div>
                     </div>
                     <div className="text-center z-10">
-                        <h2 className="text-3xl font-bold mb-2">Cuộc gọi đến từ User {otherUserId}</h2>
-                        <p className="text-gray-300 text-lg">Cuộc gọi {callType}...</p>
+                        <h2 className="text-3xl font-bold mb-2">Cuộc gọi đến từ {otherUserName}</h2>
+                        <p className="text-gray-300 text-lg">Cuộc gọi {callType} đến...</p>
                     </div>
                     <div className="flex space-x-8 mt-8 z-10">
                         <button
@@ -181,10 +260,14 @@ export const CallOverlay = () => {
             {callStatus === 'CALLING' && (
                 <div className="flex flex-col items-center space-y-8 animate-in fade-in zoom-in duration-300">
                     <div className="w-32 h-32 bg-gray-800 rounded-full flex items-center justify-center overflow-hidden border-4 border-gray-600">
-                        <User size={64} className="text-gray-400" />
+                        {otherUserAvatar ? (
+                            <img src={otherUserAvatar} alt={otherUserName} className="w-full h-full object-cover" />
+                        ) : (
+                            <User size={64} className="text-gray-400" />
+                        )}
                     </div>
                     <div className="text-center">
-                        <h2 className="text-3xl font-bold mb-2">Đang gọi User {otherUserId}...</h2>
+                        <h2 className="text-3xl font-bold mb-2">Đang gọi {otherUserName}...</h2>
                         <p className="text-gray-400 text-lg animate-pulse">Đang đổ chuông...</p>
                     </div>
                     <div className="mt-8">
@@ -234,12 +317,16 @@ export const CallOverlay = () => {
                             {/* Ẩn thẻ audio đi vì chỉ cần phát tiếng */}
                             <audio ref={remoteVideoRef} autoPlay />
 
-                            <div className="w-40 h-40 bg-gray-800 rounded-full flex items-center justify-center mb-8 border border-gray-700 shadow-xl relative">
+                            <div className="w-40 h-40 bg-gray-800 rounded-full flex items-center justify-center mb-8 border border-gray-700 shadow-xl relative overflow-hidden">
                                 {/* Ripple effect cho âm thanh */}
                                 {remoteStream && <div className="absolute inset-0 bg-blue-500 rounded-full animate-ping opacity-20"></div>}
-                                <User size={80} className="text-gray-500 z-10" />
+                                {otherUserAvatar ? (
+                                    <img src={otherUserAvatar} alt={otherUserName} className="w-full h-full object-cover z-10" />
+                                ) : (
+                                    <User size={80} className="text-gray-500 z-10" />
+                                )}
                             </div>
-                            <h2 className="text-3xl font-bold mb-3">User {otherUserId}</h2>
+                            <h2 className="text-3xl font-bold mb-3">{otherUserName}</h2>
                             <div className="bg-gray-800 px-6 py-2 rounded-full border border-gray-700">
                                 <p className="text-2xl font-mono text-blue-400">{formatTime(timer)}</p>
                             </div>
