@@ -47,10 +47,10 @@ const SpotifySection = React.memo(({ value, onChange }) => {
         placeholder="https://open.spotify.com/track/..." 
         value={inputValue} 
         onChange={(e) => setInputValue(e.target.value)} 
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-md h-10 px-3 text-sm text-white focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-all" 
+        className="w-full bg-white/5 border border-white/10 focus:border-white/20 focus:bg-white/10 rounded-xl h-10.5 px-3 text-sm text-white focus:outline-none transition-all" 
       />
 
-      <div className="relative min-h-[80px] w-full rounded-xl overflow-hidden border border-zinc-800 bg-zinc-900/30">
+      <div className="relative min-h-[80px] w-full rounded-2xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-sm">
         {embedUrl ? (
           <iframe 
             key={embedUrl} // Cực kỳ quan trọng: Iframe chỉ load lại khi ID bài hát thay đổi
@@ -60,17 +60,17 @@ const SpotifySection = React.memo(({ value, onChange }) => {
             frameBorder="0" 
             allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
             loading="lazy"
-            className="rounded-xl"
+            className="rounded-2xl"
             title="Spotify Preview"
           ></iframe>
         ) : (
           <div className="flex items-center gap-3 p-4">
-            <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-500">
-              <Music2 size={20} />
+            <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-zinc-400">
+              <Music2 size={20} className="stroke-[1.5]" />
             </div>
             <div>
-              <p className="text-xs font-medium text-zinc-400">No songs yet</p>
-              <p className="text-[10px] text-zinc-600">Paste a Spotify link to add background music</p>
+              <p className="text-xs font-semibold text-zinc-300">No songs yet</p>
+              <p className="text-[10px] text-zinc-500 mt-0.5">Paste a Spotify link to add background music</p>
             </div>
           </div>
         )}

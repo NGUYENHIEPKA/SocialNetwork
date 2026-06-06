@@ -8,8 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/ta
 import { MoreHorizontal, Share, Verified, ArrowLeft, ChevronDown, UserMinus, Users, UserCheck, BookOpen, UserCircle } from "lucide-react";
 import { PostCard } from "../../components/PostCard/PostCard.jsx";
 import { ImageViewer } from "../../components/ImageViewer/ImageViewer.jsx";
-import {AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,} from "../../components/ui/alert-dialog.js";
-import {fetchMyPosts, selectMyPosts, selectMyPostsLoading, fetchUserPosts, selectUserPosts, selectUserPostsLoading, fetchMyReposts, fetchUserReposts, selectMyReposts, selectMyRepostsLoading, selectUserReposts, selectUserRepostsLoading,} from "../../store/postsSlice";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, } from "../../components/ui/alert-dialog.js";
+import { fetchMyPosts, selectMyPosts, selectMyPostsLoading, fetchUserPosts, selectUserPosts, selectUserPostsLoading, fetchMyReposts, fetchUserReposts, selectMyReposts, selectMyRepostsLoading, selectUserReposts, selectUserRepostsLoading, } from "../../store/postsSlice";
 import { fetchMyInfo, selectUser } from "../../store/userSlice";
 import { fetchMyStories, selectMyStories } from "../../store/storySlice";
 import postApi from "../../api/postApi";
@@ -19,6 +19,7 @@ import { EditProfileDialog } from "./EditProfileDialog.jsx";
 import SpotifyView from "../../components/SpotifySection/SpotifyView";
 import StoryViewer from "../../components/Story/StoryViewer";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function ProfilePage() {
   const { username: rawUsername } = useParams();
@@ -70,20 +71,21 @@ export function ProfilePage() {
 
   // mở dialog Edit profile
   const [editOpen, setEditOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("threads");
   const isOwnProfile = !cleanUsername || cleanUsername === profile.username;
   const user = isOwnProfile
     ? {
-        userId: profile.userId,
-        displayName: profile.fullName ?? "Unknown",
-        username: profile.username ?? "unknown",
-        bio: profile.bio ?? "",
-        avatar: profile.avatarUrl ?? "/default-avatar.png",
-        followers: profile.followerCount ?? 0,
-        following: profile.followingCount ?? 0,
-        verified: profile.verified ?? false,
-      }
+      userId: profile.userId,
+      displayName: profile.fullName ?? "Unknown",
+      username: profile.username ?? "unknown",
+      bio: profile.bio ?? "",
+      avatar: profile.avatarUrl ?? "/default-avatar.png",
+      followers: profile.followerCount ?? 0,
+      following: profile.followingCount ?? 0,
+      verified: profile.verified ?? false,
+    }
     : otherProfile
-    ? {
+      ? {
         userId: otherProfile.userId,
         displayName: otherProfile.fullName ?? "Unknown",
         username: otherProfile.username ?? "unknown",
@@ -93,41 +95,41 @@ export function ProfilePage() {
         following: otherProfile.followingCount ?? 0,
         verified: otherProfile.verified ?? false,
       }
-    : null;
+      : null;
 
   // LẤY BÀI VIẾT + PROFILE
   useEffect(() => {
-  if (isOwnProfile) {
-    dispatch(fetchMyPosts());
-    dispatch(fetchMyReposts());
-    dispatch(fetchMyStories());
-    dispatch(fetchMyInfo()); // refresh follower/following count
-    return;
-  }
-
-  if (!cleanUsername) return;
-
-  (async () => {
-    try {
-      dispatch(fetchUserPosts({ username: cleanUsername }));
-      dispatch(fetchUserReposts({ username: cleanUsername })); 
-
-      const userRes = await postApi.getUserByUsername(cleanUsername);
-      const followingUser = userRes?.result;
-      setOtherProfile(followingUser);
-    // lấy trạng thái follow + friend
-      if (followingUser?.userId) {
-        const statusRes = await followApi.getFollowStatus(followingUser.userId);
-        setIsFollowing(!!statusRes?.isFollowing);
-        setIsFriend(!!statusRes?.isFriend);
-      }
-    } catch (err) {
-      console.error("Error loading profile:", err);
+    if (isOwnProfile) {
+      dispatch(fetchMyPosts());
+      dispatch(fetchMyReposts());
+      dispatch(fetchMyStories());
+      dispatch(fetchMyInfo()); // refresh follower/following count
+      return;
     }
-  })();
-}, [dispatch, isOwnProfile, cleanUsername, location.key]);
-  
-  
+
+    if (!cleanUsername) return;
+
+    (async () => {
+      try {
+        dispatch(fetchUserPosts({ username: cleanUsername }));
+        dispatch(fetchUserReposts({ username: cleanUsername }));
+
+        const userRes = await postApi.getUserByUsername(cleanUsername);
+        const followingUser = userRes?.result;
+        setOtherProfile(followingUser);
+        // lấy trạng thái follow + friend
+        if (followingUser?.userId) {
+          const statusRes = await followApi.getFollowStatus(followingUser.userId);
+          setIsFollowing(!!statusRes?.isFollowing);
+          setIsFriend(!!statusRes?.isFriend);
+        }
+      } catch (err) {
+        console.error("Error loading profile:", err);
+      }
+    })();
+  }, [dispatch, isOwnProfile, cleanUsername, location.key]);
+
+
 
   // Fetch story công khai của user khi xem profile người khác
   useEffect(() => {
@@ -181,7 +183,7 @@ export function ProfilePage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [friendsMenuOpen]);
 
- // Format số follower/following cho đẹp (1.2K, 3.4M,...)
+  // Format số follower/following cho đẹp (1.2K, 3.4M,...)
   const formatNumber = (num) => {
     if (!num) return 0;
     if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + "M";
@@ -269,27 +271,40 @@ export function ProfilePage() {
     navigate(`/post/${postId}`);
   };
   return (
-    <div className="max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto relative min-h-screen">
+      {/* Decorative Glow Blobs */}
+      <div className="absolute top-[-5%] left-[-15%] w-[350px] h-[350px] rounded-full bg-violet-500/8 blur-[100px] pointer-events-none -z-10" />
+      <div className="absolute top-[25%] right-[-15%] w-[300px] h-[300px] rounded-full bg-cyan-500/8 blur-[90px] pointer-events-none -z-10" />
+
       {/* Header cố định trên cùng */}
-      <div className="border-b border-border p-4 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
+      <div className="border-b border-border/20 p-4 bg-background/40 backdrop-blur-md sticky top-0 z-20">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={handleBack} className="p-2">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleBack}
+            className="p-2 rounded-xl hover:bg-muted/30 transition-colors cursor-pointer text-foreground flex items-center justify-center"
+          >
+            <ArrowLeft className="w-5 h-5 stroke-[1.8]" />
+          </motion.button>
           <div className="flex-1">
-            <h2 className="text-xl font-semibold">{user?.displayName}</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-xl font-semibold tracking-tight text-foreground">{user?.displayName}</h2>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               {postsToRender?.length || 0} threads
             </p>
           </div>
-          <Button variant="ghost" size="sm" className="p-2">
-            <MoreHorizontal className="w-5 h-5" />
-          </Button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            className="p-2 rounded-xl hover:bg-muted/30 transition-colors cursor-pointer text-foreground flex items-center justify-center"
+          >
+            <MoreHorizontal className="w-5 h-5 stroke-[1.8]" />
+          </motion.button>
         </div>
       </div>
 
       {/* Phần info profile (avatar, name, bio, stats, nút ...) */}
-      <div className="p-6">
+      <div className="">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-2">
@@ -361,25 +376,32 @@ export function ProfilePage() {
             })()}
 
             {/* Dropdown: Xem tin / Xem ảnh đại diện */}
-            {avatarMenuOpen && (
-              <div className="absolute right-0 top-full mt-2 z-30 w-52 rounded-2xl border border-border bg-card shadow-xl overflow-hidden">
-                <button
-                  className="flex w-full items-center gap-3 px-4 py-3.5 text-sm font-semibold hover:bg-accent transition-colors"
-                  onClick={() => { setAvatarMenuOpen(false); setStoryViewerOpen(true); }}
+            <AnimatePresence>
+              {avatarMenuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  className="absolute right-0 top-full mt-2 z-30 w-52 rounded-2xl border border-border/40 bg-card/90 backdrop-blur-md shadow-xl overflow-hidden p-1"
                 >
-                  <BookOpen className="w-5 h-5 shrink-0" />
-                  Xem tin
-                </button>
-                <div className="h-px bg-border" />
-                <button
-                  className="flex w-full items-center gap-3 px-4 py-3.5 text-sm font-semibold hover:bg-accent transition-colors"
-                  onClick={() => { setAvatarMenuOpen(false); if (user?.avatar) setAvatarViewerOpen(true); }}
-                >
-                  <UserCircle className="w-5 h-5 shrink-0" />
-                  Xem ảnh đại diện
-                </button>
-              </div>
-            )}
+                  <button
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/50 rounded-xl transition-all duration-200 cursor-pointer text-left"
+                    onClick={() => { setAvatarMenuOpen(false); setStoryViewerOpen(true); }}
+                  >
+                    <BookOpen className="w-5 h-5 stroke-[1.5] text-muted-foreground shrink-0" />
+                    <span>Xem tin</span>
+                  </button>
+                  <button
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-semibold text-foreground hover:bg-muted/50 rounded-xl transition-all duration-200 cursor-pointer text-left"
+                    onClick={() => { setAvatarMenuOpen(false); if (user?.avatar) setAvatarViewerOpen(true); }}
+                  >
+                    <UserCircle className="w-5 h-5 stroke-[1.5] text-muted-foreground shrink-0" />
+                    <span>Xem ảnh đại diện</span>
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -408,139 +430,178 @@ export function ProfilePage() {
           };
 
           return (
-            <div className="flex items-center gap-2 mb-3">
-              <button
-                className="flex-1 flex items-center justify-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-accent transition-colors cursor-pointer"
+            <div className="flex items-center gap-3 mb-4">
+              <motion.button
+                whileHover={{ scale: 1.02, y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex-1 flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-muted/10 px-5 py-3.5 hover:bg-muted/20 hover:border-border/60 transition-all duration-300 cursor-pointer shadow-sm backdrop-blur-sm text-left group"
                 onClick={handleFollowersClick}
               >
-                <Users className="w-6 h-6 text-muted-foreground shrink-0" />
-                <div className="flex flex-col items-center">
-                  <span className="text-xl font-bold tracking-tight leading-none">{formatNumber(user?.followers)}</span>
-                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-0.5">Followers</span>
+                <div className="flex flex-col">
+                  <span className="text-xl font-bold tracking-tight text-foreground leading-none">{formatNumber(user?.followers)}</span>
+                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-1.5">Followers</span>
                 </div>
-              </button>
+                <div className="bg-muted/30 p-2 rounded-xl border border-border/20 text-muted-foreground group-hover:text-foreground transition-colors shrink-0">
+                  <Users className="w-5 h-5 stroke-[1.5]" />
+                </div>
+              </motion.button>
 
-              <button
-                className="flex-1 flex items-center justify-center gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:bg-accent transition-colors cursor-pointer"
+              <motion.button
+                whileHover={{ scale: 1.02, y: -1 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex-1 flex items-center justify-between gap-3 rounded-2xl border border-border/40 bg-muted/10 px-5 py-3.5 hover:bg-muted/20 hover:border-border/60 transition-all duration-300 cursor-pointer shadow-sm backdrop-blur-sm text-left group"
                 onClick={handleFollowingClick}
               >
-                <UserCheck className="w-6 h-6 text-muted-foreground shrink-0" />
-                <div className="flex flex-col items-center">
-                  <span className="text-xl font-bold tracking-tight leading-none">{formatNumber(user?.following)}</span>
-                  <span className="text-xs text-muted-foreground font-medium uppercase tracking-wide mt-0.5">Following</span>
+                <div className="flex flex-col">
+                  <span className="text-xl font-bold tracking-tight text-foreground leading-none">{formatNumber(user?.following)}</span>
+                  <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mt-1.5">Following</span>
                 </div>
-              </button>
+                <div className="bg-muted/30 p-2 rounded-xl border border-border/20 text-muted-foreground group-hover:text-foreground transition-colors shrink-0">
+                  <UserCheck className="w-5 h-5 stroke-[1.5]" />
+                </div>
+              </motion.button>
             </div>
           );
         })()}
-        <SpotifyView url={isOwnProfile ? profile.spotifyLink : otherProfile?.spotifyLink} />
-
         {/* Nút action: nếu là mình -> Edit/Share, nếu là người khác -> Follow/Friends/... */}
-        <div className="flex gap-3">
+        <div className="flex gap-3 mb-4">
           {isOwnProfile ? (
-            <>
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setEditOpen(true)}
-              >
-                Edit profile
-              </Button>
-              <Button variant="outline" className="flex-1">
-                Share profile
-              </Button>
-            </>
+            <motion.button
+              whileHover={{ scale: 1.01, y: -0.5 }}
+              whileTap={{ scale: 0.99 }}
+              className="w-full flex items-center justify-center font-semibold text-sm rounded-2xl border border-border/40 bg-muted/10 hover:bg-muted/20 hover:border-border/60 transition-all duration-300 cursor-pointer h-10.5 shadow-sm text-foreground backdrop-blur-sm"
+              onClick={() => setEditOpen(true)}
+            >
+              Edit profile
+            </motion.button>
           ) : (
             <>
               {/* ── Not following ── */}
               {!isFollowing && (
-                <Button onClick={handleFollow} className="flex-1 font-semibold">
+                <motion.button
+                  whileHover={{ scale: 1.02, y: -0.5 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleFollow}
+                  className="flex-1 flex items-center justify-center font-semibold text-sm rounded-2xl bg-foreground text-background hover:opacity-90 transition-all duration-300 cursor-pointer h-10.5 shadow-sm"
+                >
                   Follow
-                </Button>
+                </motion.button>
               )}
 
               {/* ── Following, not mutual ── */}
               {isFollowing && !isFriend && (
-                <Button
-                  variant="outline"
-                  className="flex-1 font-semibold border-2"
+                <motion.button
+                  whileHover={{ scale: 1.02, y: -0.5 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setUnfollowDialogOpen(true)}
+                  className="flex-1 flex items-center justify-center font-semibold text-sm rounded-2xl border border-border/40 bg-muted/10 hover:bg-muted/20 hover:border-border/60 transition-all duration-300 cursor-pointer h-10.5 shadow-sm text-foreground backdrop-blur-sm"
                 >
                   Following
-                </Button>
+                </motion.button>
               )}
 
               {/* ── Mutual → Friends split-button ── */}
               {isFriend && (
                 <div ref={friendsMenuRef} className="relative flex-1">
                   {/* Split button row */}
-                  <div className="flex rounded-xl overflow-hidden border-2 border-border">
+                  <div className="flex rounded-2xl overflow-hidden border border-border/40 bg-muted/10 backdrop-blur-sm h-10.5 shadow-sm hover:border-border/60 transition-all duration-300">
                     {/* Left: Friends label — non-clickable */}
-                    <div className="flex flex-1 items-center justify-center gap-1.5 px-4 py-2 bg-background select-none">
-                      <Users className="w-4 h-4 text-primary" />
-                      <span className="font-semibold text-sm">Friends</span>
+                    <div className="flex flex-1 items-center justify-center gap-1.5 px-4 select-none">
+                      <Users className="w-4 h-4 text-foreground stroke-[1.5]" />
+                      <span className="font-semibold text-sm text-foreground">Friends</span>
                     </div>
                     {/* Divider */}
-                    <div className="w-px bg-border" />
+                    <div className="w-px bg-border/40" />
                     {/* Right: chevron trigger */}
-                    <button
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
                       onClick={() => setFriendsMenuOpen((o) => !o)}
-                      className="flex items-center justify-center px-3 py-2 bg-background hover:bg-accent transition-colors"
+                      className="flex items-center justify-center px-3 hover:bg-muted/20 transition-colors cursor-pointer"
                       aria-label="Friends options"
                     >
                       <ChevronDown
-                        className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${
-                          friendsMenuOpen ? "rotate-180" : ""
-                        }`}
+                        className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${friendsMenuOpen ? "rotate-180" : ""
+                          }`}
                       />
-                    </button>
+                    </motion.button>
                   </div>
 
                   {/* Dropdown panel */}
-                  {friendsMenuOpen && (
-                    <div className="absolute left-0 right-0 mt-1.5 z-20 rounded-xl border border-border bg-card shadow-xl overflow-hidden">
-                      <button
-                        className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-500/10 active:bg-red-500/20 transition-colors"
-                        onClick={() => {
-                          setFriendsMenuOpen(false);
-                          setUnfollowDialogOpen(true);
-                        }}
+                  <AnimatePresence>
+                    {friendsMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        className="absolute left-0 right-0 mt-1.5 z-20 rounded-2xl border border-border/40 bg-card/95 shadow-xl backdrop-blur-md p-1"
                       >
-                        <UserMinus className="w-4 h-4 shrink-0" />
-                        Unfollow
-                      </button>
-                    </div>
-                  )}
+                        <button
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-500/10 active:bg-red-500/20 rounded-xl transition-colors cursor-pointer text-left"
+                          onClick={() => {
+                            setFriendsMenuOpen(false);
+                            setUnfollowDialogOpen(true);
+                          }}
+                        >
+                          <UserMinus className="w-4.5 h-4.5 stroke-[1.5] shrink-0" />
+                          <span>Unfollow</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               )}
 
-              <Button variant="outline" className="flex-1 font-semibold">
+              <motion.button
+                whileHover={{ scale: 1.02, y: -0.5 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex-1 flex items-center justify-center font-semibold text-sm rounded-2xl border border-border/40 bg-muted/10 hover:bg-muted/20 hover:border-border/60 transition-all duration-300 cursor-pointer h-10.5 shadow-sm text-foreground backdrop-blur-sm"
+              >
                 Mention
-              </Button>
-              <Button variant="outline" size="sm" className="px-3">
-                <Share className="w-4 h-4" />
-              </Button>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02, y: -0.5 }}
+                whileTap={{ scale: 0.98 }}
+                className="px-3.5 rounded-2xl border border-border/40 bg-muted/10 hover:bg-muted/20 hover:border-border/60 transition-all duration-300 cursor-pointer h-10.5 shadow-sm text-foreground backdrop-blur-sm flex items-center justify-center shrink-0"
+              >
+                <Share className="w-4 h-4 stroke-[1.5]" />
+              </motion.button>
             </>
           )}
         </div>
+
+        <SpotifyView url={isOwnProfile ? profile.spotifyLink : otherProfile?.spotifyLink} />
       </div>
 
       {/* Tabs Threads / Replies / Reposts */}
-      <Tabs defaultValue="threads" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-12 bg-transparent border-b border-border rounded-none">
-          <TabsTrigger
-            value="threads"
-            className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-          >
-            Threads
-          </TabsTrigger>
-          <TabsTrigger
-            value="reposts"
-            className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none"
-          >
-            Reposts
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex justify-center w-full border-b border-border/40 py-3 bg-background/50 backdrop-blur-sm sticky top-14 md:top-0 z-10">
+          <TabsList className="bg-muted/40 border border-border/40 rounded-full p-1 h-10 w-full max-w-[320px] grid grid-cols-2 relative overflow-hidden">
+            <TabsTrigger
+              value="threads"
+              className="relative z-10 rounded-full text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              Threads
+            </TabsTrigger>
+            <TabsTrigger
+              value="reposts"
+              className="relative z-10 rounded-full text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              Reposts
+            </TabsTrigger>
+
+            {/* Sliding Indicator background pill */}
+            <div className="absolute inset-1 w-[calc(50%-4px)] h-[calc(100%-8px)] pointer-events-none z-0">
+              <motion.div
+                className="w-full h-full bg-foreground rounded-full shadow-sm"
+                animate={{
+                  x: activeTab === "threads" ? 0 : "100%",
+                }}
+                transition={{ type: "spring", stiffness: 350, damping: 28 }}
+              />
+            </div>
+          </TabsList>
+        </div>
 
         {/* Tab Threads */}
         <TabsContent value="threads" className="mt-0">
@@ -623,22 +684,21 @@ export function ProfilePage() {
       {/* Dialog Edit Profile riêng */}
       <EditProfileDialog open={editOpen} onOpenChange={setEditOpen} />
 
-      {/* Unfollow confirmation dialog */}
       <AlertDialog open={unfollowDialogOpen} onOpenChange={setUnfollowDialogOpen}>
-        <AlertDialogContent className="w-fit min-w-[200px] rounded-2xl p-0 overflow-hidden gap-0">
+        <AlertDialogContent className="w-fit min-w-[280px] rounded-3xl p-0 overflow-hidden gap-0 bg-card/75 backdrop-blur-xl border border-border/40 shadow-2xl text-foreground">
           <AlertDialogTitle className="sr-only">Unfollow</AlertDialogTitle>
           <AlertDialogDescription className="sr-only">Confirm unfollow action</AlertDialogDescription>
           {/* Header — avatar + name */}
-          <div className="flex flex-col items-center gap-2 px-4 pt-4 pb-3">
-            <Avatar style={{ width: 48, height: 48, minWidth: 48, minHeight: 48 }} className="shrink-0 ring-2 ring-border">
+          <div className="flex flex-col items-center gap-3 px-6 pt-6 pb-4">
+            <Avatar style={{ width: 56, height: 56, minWidth: 56, minHeight: 56 }} className="shrink-0 ring-2 ring-border/20">
               <AvatarImage src={user?.avatar} alt={user?.displayName} style={{ objectFit: "cover" }} />
               <AvatarFallback className="text-base">{user?.displayName?.charAt(0)}</AvatarFallback>
             </Avatar>
             <div className="text-center">
-              <p className="font-semibold text-base">{user?.displayName}</p>
-              <p className="text-sm text-muted-foreground">@{user?.username}</p>
+              <p className="font-bold text-base leading-snug">{user?.displayName}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">@{user?.username}</p>
             </div>
-            <p className="text-sm text-muted-foreground text-center leading-relaxed">
+            <p className="text-xs text-muted-foreground text-center leading-relaxed max-w-[220px] mt-1">
               {isFriend
                 ? "You will no longer be friends. They will still follow you."
                 : "You will stop following this account."}
@@ -646,18 +706,18 @@ export function ProfilePage() {
           </div>
 
           {/* Divider */}
-          <div className="h-px bg-border" />
+          <div className="h-px bg-border/20" />
 
           {/* Actions */}
           <div className="flex flex-col">
             <AlertDialogAction
-              className="rounded-none h-11 text-base font-semibold text-red-500 bg-transparent hover:bg-red-500/10 active:bg-red-500/15 transition-colors border-0 shadow-none"
+              className="rounded-none h-12 text-sm font-bold text-red-500 bg-transparent hover:bg-red-500/10 active:bg-red-500/15 transition-colors border-0 shadow-none cursor-pointer"
               onClick={handleUnfollow}
             >
               Unfollow
             </AlertDialogAction>
-            <div className="h-px bg-border" />
-            <AlertDialogCancel className="rounded-none h-11 text-base font-medium bg-transparent hover:bg-accent border-0 shadow-none mt-0">
+            <div className="h-px bg-border/20" />
+            <AlertDialogCancel className="rounded-none h-12 text-sm font-semibold text-foreground bg-transparent hover:bg-muted/30 border-0 shadow-none mt-0 cursor-pointer">
               Cancel
             </AlertDialogCancel>
           </div>

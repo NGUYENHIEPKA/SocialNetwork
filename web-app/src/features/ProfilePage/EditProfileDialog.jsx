@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { format, parse, isValid } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
+import { motion } from "framer-motion";
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
@@ -115,40 +116,55 @@ export function EditProfileDialog({ open, onOpenChange }) {
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md p-0 bg-zinc-950 border-zinc-800 text-white [&>button]:hidden rounded-xl"
+      <DialogContent className="sm:max-w-md p-0 bg-zinc-950/65 backdrop-blur-xl border border-white/10 text-white [&>button]:hidden rounded-3xl shadow-2xl shadow-black/50 overflow-hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <div className="overflow-hidden rounded-xl flex flex-col">
-        <DialogHeader className="border-b border-zinc-800 px-4 py-3">
+        <div className="flex flex-col">
+        <DialogHeader className="border-b border-white/10 px-5 py-4">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white" onClick={() => onOpenChange?.(false)}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              className="text-sm font-semibold text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition-all duration-200 cursor-pointer"
+              onClick={() => onOpenChange?.(false)}
+            >
               Cancel
-            </Button>
-            <DialogTitle className="text-base font-semibold">Edit Profile</DialogTitle>
+            </motion.button>
+            <DialogTitle className="text-base font-bold tracking-tight text-foreground">Edit Profile</DialogTitle>
             <DialogDescription className="sr-only">Edit your profile information</DialogDescription>
-            <div className="w-[52px]" /> 
+            <div className="w-[68px]" /> 
           </div>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[70vh] overflow-y-auto likers-scroll">
           <div className="flex items-center gap-4">
-            <Avatar className="w-16 h-16 border border-zinc-800">
+            <Avatar className="w-16 h-16 border border-white/10 ring-2 ring-white/5">
               <AvatarImage src={displayAvatar} style={{ objectFit: "cover" }} />
               <AvatarFallback className="bg-zinc-800 text-zinc-400">{displayName?.charAt(0)}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <Input type="file" accept="image/*" onChange={handleAvatarChange} className="bg-zinc-900 border-zinc-800 file:text-white text-xs h-9" />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="bg-white/5 border border-white/10 focus:border-white/20 file:text-white file:bg-white/10 file:border-none file:px-3 file:py-1 file:rounded-lg file:cursor-pointer text-xs h-10 rounded-xl cursor-pointer focus:ring-1 focus:ring-white/15 focus:outline-none"
+              />
             </div>
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-400">Full Name</label>
-            <Input value={fullName} onChange={(e) => setFullName(e.target.value)} className="bg-zinc-900 border-zinc-800 focus:ring-1 focus:ring-zinc-700 h-10" />
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Full Name</label>
+            <Input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="bg-white/5 border border-white/10 focus:border-white/20 focus:bg-white/10 transition-all h-10.5 rounded-xl text-sm"
+            />
           </div>
 
           <div className="space-y-1 flex flex-col">
-            <label className="text-sm font-medium text-zinc-400">Date of Birth</label>
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Date of Birth</label>
             <Popover>
               <div className="relative">
                 <Input
@@ -161,15 +177,20 @@ export function EditProfileDialog({ open, onOpenChange }) {
                       if (isValid(parsed)) setDob(format(parsed, "yyyy-MM-dd"));
                     }
                   }}
-                  className="w-full bg-zinc-900 border-zinc-800 text-white pr-10 h-10"
+                  className="w-full bg-white/5 border border-white/10 focus:border-white/20 focus:bg-white/10 transition-all text-white pr-10 h-10.5 rounded-xl text-sm"
                 />
                 <PopoverTrigger asChild>
-                  <Button variant="ghost" size="sm" className="absolute right-0 top-0 h-full px-3 hover:bg-transparent text-zinc-400">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="button"
+                    className="absolute right-0 top-0 h-full px-3 text-zinc-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center"
+                  >
                     <CalendarIcon className="h-4 w-4" />
-                  </Button>
+                  </motion.button>
                 </PopoverTrigger>
               </div>
-              <PopoverContent className="w-auto p-0 bg-zinc-950 border-zinc-800 shadow-2xl" align="start">
+              <PopoverContent className="w-auto p-0 bg-zinc-950/85 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl overflow-hidden" align="start">
                 <Calendar
                   mode="single"
                   fromYear={1900}
@@ -177,16 +198,16 @@ export function EditProfileDialog({ open, onOpenChange }) {
                   captionLayout="dropdown"
                   selected={dob ? parse(dob, "yyyy-MM-dd", new Date()) : undefined}
                   onSelect={(date) => date && setDob(format(date, "yyyy-MM-dd"))}
-                  className="bg-zinc-950 text-white p-3"
+                  className="bg-transparent text-white p-3"
                   components={{
                     Dropdown: ({ value, onChange, children }) => {
                       const options = Array.isArray(children) ? children : [];
                       return (
                         <Select value={value?.toString()} onValueChange={(v) => onChange?.({ target: { value: v } })}>
-                          <SelectTrigger className="h-8 min-w-[70px] bg-zinc-900 border-zinc-800 text-xs">
+                          <SelectTrigger className="h-8 min-w-[70px] bg-white/5 border border-white/10 text-xs rounded-lg text-white">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-zinc-900 border-zinc-800 text-white max-h-[200px]">
+                          <SelectContent className="bg-zinc-900/90 backdrop-blur-md border border-white/10 text-white max-h-[200px] rounded-xl">
                             {options.map((opt) => (
                               <SelectItem key={opt.props.value} value={opt.props.value?.toString()}>{opt.props.children}</SelectItem>
                             ))}
@@ -210,37 +231,52 @@ export function EditProfileDialog({ open, onOpenChange }) {
           <SpotifySection value={spotifyLink} onChange={setSpotifyLink} />
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-400">City</label>
-            <Input value={city} onChange={(e) => setCity(e.target.value)} className="bg-zinc-900 border-zinc-800 focus:ring-1 focus:ring-zinc-700 h-10" />
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">City</label>
+            <Input
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              className="bg-white/5 border border-white/10 focus:border-white/20 focus:bg-white/10 transition-all h-10.5 rounded-xl text-sm"
+            />
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-400">Bio</label>
-            <Textarea rows={3} value={bio} onChange={(e) => setBio(e.target.value)} className="bg-zinc-900 border-zinc-800 focus:ring-1 focus:ring-zinc-700 resize-none" />
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Bio</label>
+            <Textarea
+              rows={3}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              className="bg-white/5 border border-white/10 focus:border-white/20 focus:bg-white/10 hover:bg-white/10 transition-all rounded-xl focus:ring-1 focus:ring-white/15 focus:outline-none resize-none text-sm"
+            />
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium text-zinc-400">Connections Privacy</label>
+            <label className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Connections Privacy</label>
             <Select value={connectionsPrivacy} onValueChange={setConnectionsPrivacy}>
-              <SelectTrigger className="bg-zinc-900 border-zinc-800 h-10">
+              <SelectTrigger className="bg-white/5 border border-white/10 focus:border-white/20 focus:bg-white/10 hover:bg-white/10 transition-all rounded-xl h-10.5 text-white">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent className="bg-zinc-900 border-zinc-800 text-white">
+              <SelectContent className="bg-zinc-900/90 backdrop-blur-md border border-white/10 text-white rounded-2xl">
                 <SelectItem value="EVERYONE">Everyone</SelectItem>
                 <SelectItem value="FRIENDS_ONLY">Friends only</SelectItem>
                 <SelectItem value="ONLY_ME">Only me</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-zinc-500">
+            <p className="text-[11px] text-zinc-500 mt-1 leading-normal">
               {connectionsPrivacy === "EVERYONE" && "Anyone can see your followers and following."}
               {connectionsPrivacy === "FRIENDS_ONLY" && "Only mutual friends can see your followers and following."}
               {connectionsPrivacy === "ONLY_ME" && "Only you can see your followers and following."}
             </p>
           </div>
 
-          <Button type="submit" disabled={submitting} className="w-full bg-white text-black hover:bg-zinc-200 font-bold h-10">
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-white text-black hover:bg-zinc-100 font-bold h-10.5 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center disabled:opacity-50"
+          >
             {submitting ? "Saving..." : "Save Changes"}
-          </Button>
+          </motion.button>
         </form>
         </div>
       </DialogContent>

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
+import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "../../components/ui/avatar";
@@ -276,21 +277,37 @@ export function ConnectionsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue={defaultTab} onValueChange={handleTabChange} className="w-full">
-        <TabsList
-          className={`grid w-full h-12 bg-transparent border-b border-border rounded-none`}
-          style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}
-        >
-          {tabs.map(({ value, label }) => (
-            <TabsTrigger
-              key={value}
-              value={value}
-              className="data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none text-xs"
+      <Tabs value={defaultTab} onValueChange={handleTabChange} className="w-full">
+        <div className="flex justify-center w-full border-b border-border/40 py-3 bg-background/50 backdrop-blur-sm sticky top-14 md:top-0 z-10">
+          <TabsList
+            className="bg-muted/40 border border-border/40 rounded-full p-1 h-10 w-full max-w-[500px] relative overflow-hidden grid"
+            style={{ gridTemplateColumns: `repeat(${tabs.length}, 1fr)` }}
+          >
+            {tabs.map(({ value, label }) => (
+              <TabsTrigger
+                key={value}
+                value={value}
+                className="relative z-10 rounded-full text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              >
+                {label}
+              </TabsTrigger>
+            ))}
+
+            {/* Sliding Indicator background pill */}
+            <motion.div
+              className="absolute top-0 bottom-0 left-0 pointer-events-none z-0 p-1"
+              style={{
+                width: `${100 / tabs.length}%`,
+              }}
+              animate={{
+                x: tabs.findIndex((t) => t.value === defaultTab) * 100 + "%",
+              }}
+              transition={{ type: "spring", stiffness: 350, damping: 28 }}
             >
-              {label}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+              <div className="w-full h-full bg-foreground rounded-full shadow-sm" />
+            </motion.div>
+          </TabsList>
+        </div>
 
         <TabsContent value="followers"  className="mt-0">{renderList(followers,  "followers")}</TabsContent>
         <TabsContent value="following"  className="mt-0">{renderList(following,  "following")}</TabsContent>

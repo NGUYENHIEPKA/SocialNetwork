@@ -11,6 +11,7 @@ import {
 import { Button } from "../../components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
+import { motion } from "framer-motion";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "../../components/ui/hover-card";
 import { UserHoverCard } from "../../components/UserHoverCard/UserHoverCard";
 import { toast } from "sonner";
@@ -130,19 +131,65 @@ export function ActivityPage() {
   const handleViewAllFollows = () => setActiveTab("follows");
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="border-b border-border p-4 bg-background/80 backdrop-blur-sm sticky top-0 z-10">
-        <h2 className="text-xl font-semibold">Activity</h2>
+    <div className="max-w-2xl mx-auto relative min-h-screen">
+      {/* Decorative Glow Blobs */}
+      <div className="absolute top-[5%] right-[-15%] w-[350px] h-[350px] rounded-full bg-violet-500/5 blur-[100px] pointer-events-none -z-10" />
+      <div className="absolute top-[35%] left-[-15%] w-[300px] h-[300px] rounded-full bg-pink-500/5 blur-[90px] pointer-events-none -z-10" />
+
+      {/* Header cố định trên cùng */}
+      <div className="border-b border-border/20 p-4 bg-background/40 backdrop-blur-md sticky top-0 z-20">
+        <h2 className="text-xl font-bold tracking-tight text-foreground">Activity</h2>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full justify-start rounded-none border-b border-[#333] bg-transparent p-0 h-auto overflow-x-auto flex-nowrap scrollbar-hide">
-          <TabsTrigger value="all" className={tabClass}>All</TabsTrigger>
-          <TabsTrigger value="comments" className={tabClass}>Replies</TabsTrigger>
-          <TabsTrigger value="likes" className={tabClass}>Likes</TabsTrigger>
-          <TabsTrigger value="reposts" className={tabClass}>Reposts</TabsTrigger>
-          <TabsTrigger value="follows" className={tabClass}>Follows</TabsTrigger>
-        </TabsList>
+        <div className="flex justify-center w-full border-b border-border/20 py-2.5 bg-background/30 backdrop-blur-sm sticky top-14 z-10 px-4">
+          <TabsList className="bg-muted/40 border border-border/40 rounded-full p-1 h-10 w-full max-w-[500px] grid grid-cols-5 relative overflow-hidden">
+            <TabsTrigger
+              value="all"
+              className="relative z-10 rounded-full text-[10px] sm:text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none cursor-pointer"
+            >
+              All
+            </TabsTrigger>
+            <TabsTrigger
+              value="comments"
+              className="relative z-10 rounded-full text-[10px] sm:text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none cursor-pointer"
+            >
+              Replies
+            </TabsTrigger>
+            <TabsTrigger
+              value="likes"
+              className="relative z-10 rounded-full text-[10px] sm:text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none cursor-pointer"
+            >
+              Likes
+            </TabsTrigger>
+            <TabsTrigger
+              value="reposts"
+              className="relative z-10 rounded-full text-[10px] sm:text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none cursor-pointer"
+            >
+              Reposts
+            </TabsTrigger>
+            <TabsTrigger
+              value="follows"
+              className="relative z-10 rounded-full text-[10px] sm:text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none cursor-pointer"
+            >
+              Follows
+            </TabsTrigger>
+
+            {/* Sliding Indicator background pill */}
+            <div className="absolute inset-1 w-[calc(20%-4px)] h-[calc(100%-8px)] pointer-events-none z-0">
+              <motion.div
+                className="w-full h-full bg-foreground rounded-full shadow-sm"
+                animate={{
+                  x: activeTab === "all" ? 0 : 
+                     activeTab === "comments" ? "100%" : 
+                     activeTab === "likes" ? "200%" : 
+                     activeTab === "reposts" ? "300%" : "400%",
+                }}
+                transition={{ type: "spring", stiffness: 350, damping: 28 }}
+              />
+            </div>
+          </TabsList>
+        </div>
       </Tabs>
 
       <div className="min-h-[200px]">
@@ -202,19 +249,19 @@ function FollowGroupedItem({ activity, onProfileClick, onFollowBack, onViewAll }
 
   return (
     <div
-      className={`border-b border-border p-4 transition-colors ${!activity.read ? "bg-muted/30" : ""} ${isMultiple ? "cursor-pointer hover:bg-muted/20" : ""}`}
+      className={`border-b border-border/10 p-4 bg-transparent transition-all duration-300 relative group ${!activity.read ? "bg-muted/10" : ""} ${isMultiple ? "cursor-pointer hover:bg-muted/5" : ""}`}
       onClick={handleRowClick}
     >
       <div className="flex items-start gap-3">
         <div className="relative" onClick={stop}>
-          <button onClick={() => onProfileClick?.(firstUser?.username)}>
-            <Avatar className="w-10 h-10 border border-background">
-              <AvatarImage src={firstUser?.avatar} />
+          <button onClick={() => onProfileClick?.(firstUser?.username)} className="cursor-pointer">
+            <Avatar className="w-10 h-10 border border-border/30 group-hover:scale-[1.02] transition-transform duration-300">
+              <AvatarImage src={firstUser?.avatar} style={{ objectFit: "cover" }} />
               <AvatarFallback>{(firstName?.[0] || "U").toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
-          <div className="absolute -bottom-1 -right-1 bg-purple-500 rounded-full p-1 border-2 border-background flex items-center justify-center w-6 h-6">
-            <UserPlus className="w-3.5 h-3.5 text-white fill-white" />
+          <div className="absolute -bottom-1 -right-1 bg-purple-500 rounded-full p-1 border border-background flex items-center justify-center w-5 h-5 shadow-sm">
+            <UserPlus className="w-3 h-3 text-white fill-white" />
           </div>
         </div>
 
@@ -222,7 +269,7 @@ function FollowGroupedItem({ activity, onProfileClick, onFollowBack, onViewAll }
           <div className="text-sm mb-1 flex flex-wrap items-center gap-1">
             <UserHoverCard username={firstUser?.username}>
               <span
-                className="font-semibold hover:underline cursor-pointer"
+                className="font-semibold hover:underline cursor-pointer text-foreground"
                 onClick={(e) => { stop(e); onProfileClick?.(firstUser?.username); }}
               >
                 {firstName}
@@ -234,7 +281,7 @@ function FollowGroupedItem({ activity, onProfileClick, onFollowBack, onViewAll }
                 <span className="text-muted-foreground">and</span>
                 <UserHoverCard username={users[1]?.username}>
                   <span
-                    className="font-semibold hover:underline cursor-pointer"
+                    className="font-semibold hover:underline cursor-pointer text-foreground"
                     onClick={(e) => { stop(e); onProfileClick?.(users[1]?.username); }}
                   >
                     {users[1].displayName || users[1].username}
@@ -249,7 +296,7 @@ function FollowGroupedItem({ activity, onProfileClick, onFollowBack, onViewAll }
                 <HoverCard openDelay={150} closeDelay={150}>
                   <HoverCardTrigger asChild>
                     <button
-                      className="font-semibold hover:underline cursor-pointer"
+                      className="font-semibold hover:underline cursor-pointer text-foreground"
                       onClick={stop}
                     >
                       {othersCount} others
@@ -260,43 +307,43 @@ function FollowGroupedItem({ activity, onProfileClick, onFollowBack, onViewAll }
                     side="bottom"
                     sideOffset={8}
                     collisionPadding={16}
-                    className="w-80 max-h-96 overflow-y-auto p-2 bg-zinc-900 border border-zinc-700 shadow-2xl z-[100]"
+                    className="w-80 max-h-96 overflow-y-auto p-2 bg-zinc-950/85 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl z-[100] likers-scroll"
                     onClick={stop}
                   >
-                    <div className="text-xs text-muted-foreground px-2 py-1 mb-1">
+                    <div className="text-[11px] font-semibold text-muted-foreground px-2.5 py-1.5 uppercase tracking-wider">
                       People who haven't been followed back
                     </div>
-                    <div className="flex flex-col">
+                    <div className="flex flex-col gap-1 mt-1">
                       {othersUsers.map((u, idx) => {
                         const source = othersSources[idx];
                         return (
                           <div
                             key={u.id || u.username}
-                            className="flex items-center gap-2 px-2 py-2 rounded hover:bg-muted"
+                            className="flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-white/5 transition-all"
                           >
                             <button
                               onClick={(e) => { stop(e); onProfileClick?.(u.username); }}
-                              className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                              className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
                             >
-                              <Avatar className="w-8 h-8">
-                                <AvatarImage src={u.avatar} />
+                              <Avatar className="w-8 h-8 border border-border/30">
+                                <AvatarImage src={u.avatar} style={{ objectFit: "cover" }} />
                                 <AvatarFallback>{(u.displayName?.[0] || u.username?.[0] || "U").toUpperCase()}</AvatarFallback>
                               </Avatar>
                               <div className="min-w-0">
-                                <div className="text-sm font-medium truncate">{u.displayName || u.username}</div>
+                                <div className="text-sm font-semibold truncate text-foreground">{u.displayName || u.username}</div>
                                 {u.username && (
                                   <div className="text-xs text-muted-foreground truncate">@{u.username}</div>
                                 )}
                               </div>
                             </button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 px-3 text-xs flex-shrink-0"
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="h-7 px-3 text-xs font-bold rounded-2xl bg-foreground text-background hover:opacity-90 transition-all flex-shrink-0 cursor-pointer"
                               onClick={(e) => { stop(e); onFollowBack(source); }}
                             >
                               Follow
-                            </Button>
+                            </motion.button>
                           </div>
                         );
                       })}
@@ -304,7 +351,7 @@ function FollowGroupedItem({ activity, onProfileClick, onFollowBack, onViewAll }
                       {exceedLimit && (
                         <button
                           onClick={(e) => { stop(e); onViewAll?.(); }}
-                          className="text-sm text-blue-500 hover:underline px-2 py-2 text-left"
+                          className="text-xs font-bold text-blue-500 hover:underline px-2.5 py-2 text-left cursor-pointer"
                         >
                           View more ({othersCount - FOLLOW_POPOVER_LIMIT} more)
                         </button>
@@ -315,7 +362,7 @@ function FollowGroupedItem({ activity, onProfileClick, onFollowBack, onViewAll }
               </>
             )}
 
-            <span className="text-muted-foreground text-xs ml-1">{dateText}</span>
+            <span className="text-muted-foreground text-xs ml-1 font-medium">{dateText}</span>
           </div>
 
           <div className="text-muted-foreground text-sm">followed you</div>
@@ -323,22 +370,24 @@ function FollowGroupedItem({ activity, onProfileClick, onFollowBack, onViewAll }
 
         <div className="flex-shrink-0 ml-2 flex items-center" onClick={stop}>
           {isMultiple ? (
-            <button
+            <motion.button
+              whileHover={{ x: 3 }}
+              whileTap={{ scale: 0.95 }}
               onClick={onViewAll}
               title="Xem chi tiết trong tab Follows"
-              className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
             >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+              <ChevronRight className="w-5 h-5 stroke-[1.8]" />
+            </motion.button>
           ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 px-4"
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="h-8 px-4 text-xs font-bold rounded-2xl bg-foreground text-background hover:opacity-90 transition-all cursor-pointer"
               onClick={() => onFollowBack(sourceNotifications[0])}
             >
               Follow
-            </Button>
+            </motion.button>
           )}
         </div>
       </div>
@@ -349,12 +398,12 @@ function FollowGroupedItem({ activity, onProfileClick, onFollowBack, onViewAll }
 function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
   const type = activity.groupType || activity.type;
   const iconMap = {
-    like_post: <Heart className="w-3.5 h-3.5 text-white fill-white" />,
-    like_comment: <Heart className="w-3.5 h-3.5 text-white fill-white" />,
-    comment_post: <MessageCircle className="w-3.5 h-3.5 text-white fill-white" />,
-    reply_comment: <MessageCircle className="w-3.5 h-3.5 text-white fill-white" />,
-    repost: <Repeat2 className="w-3.5 h-3.5 text-white" />,
-    follow: <UserPlus className="w-3.5 h-3.5 text-white fill-white" />,
+    like_post: <Heart className="w-3 h-3 text-white fill-white" />,
+    like_comment: <Heart className="w-3 h-3 text-white fill-white" />,
+    comment_post: <MessageCircle className="w-3 h-3 text-white fill-white" />,
+    reply_comment: <MessageCircle className="w-3 h-3 text-white fill-white" />,
+    repost: <Repeat2 className="w-3 h-3 text-white" />,
+    follow: <UserPlus className="w-3 h-3 text-white fill-white" />,
   };
 
   const bgMap = {
@@ -393,17 +442,17 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
   const firstName = firstUser?.displayName || firstUser?.username || "Someone";
 
   return (
-    <div className={`border-b border-border p-4 transition-colors ${!activity.read ? "bg-muted/30" : ""}`}>
+    <div className={`border-b border-border/10 p-4 bg-transparent hover:bg-muted/5 transition-all duration-300 relative group ${!activity.read ? "bg-muted/10" : ""}`}>
       <div className="flex items-start gap-3">
         <div className="relative">
-          <button onClick={() => onProfileClick?.(firstUser?.username)}>
-            <Avatar className="w-10 h-10 border border-background">
-              <AvatarImage src={firstUser?.avatar} />
+          <button onClick={() => onProfileClick?.(firstUser?.username)} className="cursor-pointer">
+            <Avatar className="w-10 h-10 border border-border/30 group-hover:scale-[1.02] transition-transform duration-300">
+              <AvatarImage src={firstUser?.avatar} style={{ objectFit: "cover" }} />
               <AvatarFallback>{(firstName?.[0] || "U").toUpperCase()}</AvatarFallback>
             </Avatar>
           </button>
           {icon && (
-            <div className={`absolute -bottom-1 -right-1 ${bgClass} rounded-full p-1 border-2 border-background flex items-center justify-center w-6 h-6`}>
+            <div className={`absolute -bottom-1 -right-1 ${bgClass} rounded-full p-1 border border-background flex items-center justify-center w-5 h-5 shadow-sm`}>
               {icon}
             </div>
           )}
@@ -413,7 +462,7 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
           <div className="text-sm mb-1 flex flex-wrap items-center gap-1">
             <UserHoverCard username={firstUser?.username}>
               <span
-                className="font-semibold hover:underline cursor-pointer"
+                className="font-semibold hover:underline cursor-pointer text-foreground"
                 onClick={() => onProfileClick?.(firstUser?.username)}
               >
                 {firstName}
@@ -425,7 +474,7 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
                 <span className="text-muted-foreground">and</span>
                 <UserHoverCard username={users[1]?.username}>
                   <span
-                    className="font-semibold hover:underline cursor-pointer"
+                    className="font-semibold hover:underline cursor-pointer text-foreground"
                     onClick={() => onProfileClick?.(users[1]?.username)}
                   >
                     {users[1].displayName || users[1].username}
@@ -439,7 +488,7 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
                 <span className="text-muted-foreground">and</span>
                 <HoverCard openDelay={150} closeDelay={150}>
                   <HoverCardTrigger asChild>
-                    <button className="font-semibold hover:underline cursor-pointer">
+                    <button className="font-semibold hover:underline cursor-pointer text-foreground">
                       {othersCount} others
                     </button>
                   </HoverCardTrigger>
@@ -448,22 +497,22 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
                     side="bottom"
                     sideOffset={8}
                     collisionPadding={16}
-                    className="w-72 max-h-72 overflow-y-auto p-2 bg-zinc-900 border border-zinc-700 shadow-2xl z-[100]"
+                    className="w-72 max-h-72 overflow-y-auto p-2 bg-zinc-950/85 backdrop-blur-xl border border-white/10 shadow-2xl rounded-2xl z-[100] likers-scroll"
                   >
-                    <div className="text-xs text-muted-foreground px-2 py-1">People who {actionText}</div>
-                    <div className="flex flex-col">
+                    <div className="text-[11px] font-semibold text-muted-foreground px-2.5 py-1.5 uppercase tracking-wider">People who {actionText}</div>
+                    <div className="flex flex-col gap-1 mt-1">
                       {users.slice(1).map((u) => (
                         <button
                           key={u.id || u.username}
                           onClick={() => onProfileClick?.(u.username)}
-                          className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted text-left"
+                          className="flex items-center gap-2 px-2.5 py-2 rounded-xl hover:bg-white/5 text-left cursor-pointer transition-colors"
                         >
-                          <Avatar className="w-7 h-7">
-                            <AvatarImage src={u.avatar} />
+                          <Avatar className="w-7 h-7 border border-border/30">
+                            <AvatarImage src={u.avatar} style={{ objectFit: "cover" }} />
                             <AvatarFallback>{(u.displayName?.[0] || u.username?.[0] || "U").toUpperCase()}</AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <div className="text-sm font-medium truncate">{u.displayName || u.username}</div>
+                            <div className="text-sm font-semibold truncate text-foreground">{u.displayName || u.username}</div>
                             {u.username && (
                               <div className="text-xs text-muted-foreground truncate">@{u.username}</div>
                             )}
@@ -476,19 +525,19 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
               </>
             )}
 
-            <span className="text-muted-foreground text-xs ml-1">{dateText}</span>
+            <span className="text-muted-foreground text-xs ml-1 font-medium">{dateText}</span>
           </div>
 
           <div className="text-muted-foreground text-sm">
             {hasPostLink ? (
               <div
                 onClick={() => onPostClick?.(activity.postId)}
-                className="cursor-pointer hover:text-foreground transition-colors"
+                className="cursor-pointer hover:text-foreground transition-colors font-medium text-xs sm:text-sm mt-0.5 inline-block"
               >
                 {actionText}
               </div>
             ) : (
-              <span>{actionText}</span>
+              <span className="font-medium text-xs sm:text-sm mt-0.5 inline-block">{actionText}</span>
             )}
           </div>
         </div>
@@ -496,18 +545,21 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
         {type === "follow" && (
           <div className="flex-shrink-0 ml-2">
             {isFollowed ? (
-              <Button variant="outline" size="sm" className="text-muted-foreground h-8 px-4" disabled>
+              <button
+                disabled
+                className="h-8 px-4 text-xs font-semibold rounded-2xl bg-muted/20 border border-border/30 text-muted-foreground opacity-60 flex items-center justify-center"
+              >
                 Following
-              </Button>
+              </button>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 px-4"
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="h-8 px-4 text-xs font-bold rounded-2xl bg-foreground text-background hover:opacity-90 transition-all cursor-pointer"
                 onClick={() => onFollowBack(activity)}
               >
                 Follow
-              </Button>
+              </motion.button>
             )}
           </div>
         )}
@@ -518,8 +570,8 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
 
 function EmptyState({ message }) {
   return (
-    <div className="py-12 text-center text-muted-foreground">
-      <p>{message}</p>
+    <div className="p-16 text-center max-w-sm mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <p className="text-sm text-muted-foreground font-medium">{message}</p>
     </div>
   );
 }

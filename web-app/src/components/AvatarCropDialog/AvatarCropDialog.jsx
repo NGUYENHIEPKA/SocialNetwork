@@ -3,6 +3,7 @@ import Cropper from "react-easy-crop";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog";
 import { Button } from "../ui/button";
 import { Slider } from "../ui/slider";
+import { motion } from "framer-motion";
 
 // Dùng canvas để cắt ảnh theo vùng crop đã chọn
 async function getCroppedBlob(imageSrc, croppedAreaPixels) {
@@ -61,16 +62,28 @@ export function AvatarCropDialog({ open, imageSrc, onClose, onCropDone }) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-sm p-0 overflow-hidden bg-zinc-950 border-zinc-800 text-white [&>button]:hidden">
-        <DialogHeader className="border-b border-zinc-800 px-4 py-3">
+      <DialogContent className="sm:max-w-sm p-0 overflow-hidden bg-zinc-950/65 backdrop-blur-xl border border-white/10 text-white [&>button]:hidden rounded-3xl shadow-2xl">
+        <DialogHeader className="border-b border-white/10 px-5 py-4">
           <div className="flex items-center justify-between">
-            <Button variant="ghost" size="sm" className="text-zinc-400 hover:text-white" onClick={onClose}>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              className="text-sm font-semibold text-zinc-400 hover:text-white px-3 py-1.5 rounded-lg hover:bg-white/5 transition-all duration-200 cursor-pointer"
+              onClick={onClose}
+            >
               Cancel
-            </Button>
-            <DialogTitle className="text-base font-semibold">Crop Avatar</DialogTitle>
-            <Button size="sm" className="bg-white text-black hover:bg-zinc-200 font-semibold" onClick={handleConfirm}>
+            </motion.button>
+            <DialogTitle className="text-base font-bold tracking-tight text-foreground">Crop Avatar</DialogTitle>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              type="button"
+              className="bg-white text-black hover:bg-zinc-100 font-bold text-sm px-4 py-1.5 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-center h-8"
+              onClick={handleConfirm}
+            >
               Apply
-            </Button>
+            </motion.button>
           </div>
         </DialogHeader>
 

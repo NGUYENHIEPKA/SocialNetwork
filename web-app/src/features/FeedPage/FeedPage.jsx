@@ -27,6 +27,7 @@ import mediaApi from "../../api/mediaApi";
 import aiApi from "../../api/aiApi";
 import AISuggestPanel from "../../components/CreatePost/AISuggestPanel";
 import ModerationWarning from "../../components/ModerationWarning/ModerationWarning";
+import { motion } from "framer-motion";
 
 export function FeedPage() {
   // REDUX
@@ -43,7 +44,8 @@ export function FeedPage() {
   const creating = useSelector(selectPostsCreating);
   const page = useSelector(selectPostsPage);
 
-  // Tab: "forYou" | "local" — quản lý bởi Tabs component, không cần state thủ công
+  // Tab: "forYou" | "local"
+  const [activeTab, setActiveTab] = useState("forYou");
 
   // Vị trí chèn suggestion card — random 3-7, cố định trong session
   const [insertAfter] = useState(() => Math.floor(Math.random() * 5) + 10);
@@ -442,21 +444,34 @@ export function FeedPage() {
       </div>
 
       {/* Tabs — nằm dưới Story, giống ProfilePage */}
-      <Tabs defaultValue="forYou">
-        <TabsList className="w-full rounded-none border-b border-border bg-transparent h-auto p-0">
-          <TabsTrigger
-            value="forYou"
-            className="flex-1 rounded-none py-3 text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-foreground data-[state=active]:shadow-none bg-transparent"
-          >
-            For You
-          </TabsTrigger>
-          <TabsTrigger
-            value="local"
-            className="flex-1 rounded-none py-3 text-sm font-medium data-[state=active]:border-b-2 data-[state=active]:border-foreground data-[state=active]:shadow-none bg-transparent"
-          >
-            {city && city !== "Unknown" ? `Local Feed · ${city}` : "Local Feed"}
-          </TabsTrigger>
-        </TabsList>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <div className="flex justify-center w-full border-b border-border/40 py-3 bg-background/50 backdrop-blur-sm sticky top-14 md:top-0 z-10">
+          <TabsList className="bg-muted/40 border border-border/40 rounded-full p-1 h-10 w-full max-w-[320px] grid grid-cols-2 relative overflow-hidden">
+            <TabsTrigger
+              value="forYou"
+              className="relative z-10 rounded-full text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              For You
+            </TabsTrigger>
+            <TabsTrigger
+              value="local"
+              className="relative z-10 rounded-full text-xs font-semibold h-full transition-colors duration-300 select-none bg-transparent border-none data-[state=active]:text-background dark:data-[state=active]:text-background text-muted-foreground data-[state=active]:bg-transparent dark:data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              {city && city !== "Unknown" ? `Local Feed · ${city}` : "Local Feed"}
+            </TabsTrigger>
+
+            {/* Sliding Indicator background pill */}
+            <div className="absolute inset-1 w-[calc(50%-4px)] h-[calc(100%-8px)] pointer-events-none z-0">
+              <motion.div
+                className="w-full h-full bg-foreground rounded-full shadow-sm"
+                animate={{
+                  x: activeTab === "forYou" ? 0 : "100%",
+                }}
+                transition={{ type: "spring", stiffness: 350, damping: 28 }}
+              />
+            </div>
+          </TabsList>
+        </div>
 
         {/* Tab For You */}
         <TabsContent value="forYou" className="mt-0">
