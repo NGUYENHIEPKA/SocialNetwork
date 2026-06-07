@@ -6,14 +6,23 @@ import { Spinner } from "../../../components/ui/spinner";
 import { searchApi } from "../../../api/searchApi";
 import { messageApi } from "../../../api/messageApi";
 import mediaApi from "../../../api/mediaApi";
+import { useDispatch, useSelector } from "react-redux";
+import { removeConversation } from "../../../store/chatSlice";
 
-export function ConversationDetails({ conversation, onClose }) {
+export function ConversationDetails({ conversation, onClose, onLeaveGroup }) {
+  const dispatch = useDispatch();
+  const { conversations } = useSelector(state => state.chat);
+
   // Add Member State
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+
+  // Leave Group Confirm State
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   // Shared Media State
   const [sharedMedia, setSharedMedia] = useState([]);
@@ -73,8 +82,7 @@ export function ConversationDetails({ conversation, onClose }) {
   };
 
   const handleLeaveGroup = async () => {
-    if (!window.confirm("Are you sure you want to leave this group?")) return;
-
+    setIsLeaving(true);
     try {
       const token = localStorage.getItem("accessToken");
       if (!token) return;
@@ -83,9 +91,19 @@ export function ConversationDetails({ conversation, onClose }) {
       const currentUserId = payload.sub;
 
       await messageApi.removeParticipant(conversation.id, currentUserId);
-      window.location.reload();
+
+      // Xóa optimistic khỏi Redux ngay lập tức
+      dispatch(removeConversation(conversation.id));
+
+      // Tìm conversation tiếp theo để auto-select
+      const remaining = conversations.filter(c => c.id !== conversation.id);
+      onLeaveGroup?.(conversation.id, remaining[0] || null);
+      onClose?.();
     } catch (err) {
       console.error("Failed to leave group:", err);
+    } finally {
+      setIsLeaving(false);
+      setIsLeaveConfirmOpen(false);
     }
   };
 
@@ -144,7 +162,7 @@ export function ConversationDetails({ conversation, onClose }) {
               <span>Add Member</span>
             </button>
             <button
-              onClick={handleLeaveGroup}
+              onClick={() => setIsLeaveConfirmOpen(true)}
               className="w-full flex items-center gap-3 p-3 hover:bg-[#1a1a1a] rounded-lg transition-colors text-sm text-red-500"
             >
               <LogOut className="w-5 h-5" />
@@ -201,9 +219,38 @@ export function ConversationDetails({ conversation, onClose }) {
         </div>
       </div>
 
+      {/* Leave Group Confirm Dialog */}
+      <Dialog open={isLeaveConfirmOpen} onOpenChange={setIsLeaveConfirmOpen}>
+        <DialogContent className="bg-[#0b0b0b] border-[#333] text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Rời khỏi nhóm</DialogTitle>
+          </DialogHeader>
+          <div className="py-2">
+            <p className="text-sm text-gray-400">
+              Bạn có chắc muốn rời khỏi nhóm <span className="text-white font-medium">{conversation?.conversationName}</span> không? Bạn sẽ không nhận được tin nhắn từ nhóm này nữa.
+            </p>
+          </div>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={() => setIsLeaveConfirmOpen(false)}
+              className="px-3 py-1.5 text-sm rounded-lg bg-[#1a1a1a] hover:bg-[#252525] transition-colors"
+            >
+              Huỷ
+            </button>
+            <button
+              onClick={handleLeaveGroup}
+              disabled={isLeaving}
+              className="px-3 py-1.5 text-sm rounded-lg bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            >
+              {isLeaving && <Spinner className="w-3 h-3" />}
+              Rời nhóm
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Add Member Dialog */}
-      <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>
-        <DialogContent className="bg-[#0b0b0b] border-[#333] text-white">
+      <Dialog open={isAddMemberOpen} onOpenChange={setIsAddMemberOpen}>        <DialogContent className="bg-[#0b0b0b] border-[#333] text-white">
           <DialogHeader>
             <DialogTitle>Add New Member</DialogTitle>
           </DialogHeader>

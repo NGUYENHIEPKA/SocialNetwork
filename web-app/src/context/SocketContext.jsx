@@ -18,8 +18,9 @@ export const useSocket = () => useContext(SocketContext);
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const dispatch = useDispatch();
-  const { isAuthenticated } = useSelector((state) => state.user); // Re-connect on login
+  const { isAuthenticated } = useSelector((state) => state.user);
   const { callStatus } = useSelector((state) => state.call);
+  const { conversations, isFetched } = useSelector((state) => state.chat);
 
   // Cross-tab Synchronization using BroadcastChannel
   useEffect(() => {
@@ -47,6 +48,25 @@ export const SocketProvider = ({ children }) => {
       channel.close();
     };
   }, [callStatus, dispatch]);
+
+  // Fetch conversations khi login để có danh sách rooms cần join
+  useEffect(() => {
+    if (isAuthenticated && !isFetched) {
+      dispatch(fetchConversations());
+    }
+  }, [isAuthenticated, isFetched, dispatch]);
+
+  // Join tất cả rooms toàn cục — không phụ thuộc vào trang nào đang mở
+  // Giúp nhận realtime khi đang ở Feed, Profile, hay bất kỳ trang nào
+  useEffect(() => {
+    if (socket && conversations.length > 0) {
+      conversations.forEach(conv => {
+        if (conv.id) {
+          socket.emit("join_room", conv.id);
+        }
+      });
+    }
+  }, [socket, conversations]);
 
   useEffect(() => {
     const token = getAccessToken();
@@ -90,9 +110,20 @@ export const SocketProvider = ({ children }) => {
       dispatch(updateUserStatus(data));
     });
 
-    // Global Message Listener
-    newSocket.on("message", (message) => {
+    // Khi được thêm vào nhóm mới → fetch lại conversations rồi join room
+    newSocket.on("group_created", (conversation) => {
       try {
+        dispatch(fetchConversations());
+        if (conversation?.id) {
+          newSocket.emit("join_room", conversation.id);
+        }
+      } catch (error) {
+        console.error("Socket group_created handling error:", error);
+      }
+    });
+
+    // Global Message Listener
+    newSocket.on("message", (message) => {      try {
         // Data is already an object, no need to JSON.parse
 
         // Add currentUserId to message to help reducer determine isMe

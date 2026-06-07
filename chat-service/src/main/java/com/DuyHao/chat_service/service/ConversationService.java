@@ -1,5 +1,6 @@
 package com.DuyHao.chat_service.service;
 
+import com.DuyHao.chat_service.dto.RealtimeMessage;
 import com.DuyHao.chat_service.dto.request.ConversationRequest;
 import com.DuyHao.chat_service.dto.response.ConversationResponse;
 import com.DuyHao.chat_service.dto.response.UserProfileResponse;
@@ -26,6 +27,8 @@ public class ConversationService {
     ConversationRepository conversationRepository;
     ProfileClient profileClient;
     StringRedisTemplate redisTemplate;
+    RedisPublisherService redisPublisherService;
+    SystemMessageService systemMessageService;
 
     private static final String ONLINE_USERS_KEY = "user:online:set";
 
@@ -109,7 +112,21 @@ public class ConversationService {
 
         conversation = conversationRepository.save(conversation);
 
-        return toConversationResponse(conversation, currentUserId, false);
+        // Push event "group_created" tới từng thành viên để họ fetch lại conversations
+        // và join room mới — không cần F5 hay bấm gì thêm
+        ConversationResponse response = toConversationResponse(conversation, currentUserId, false);
+        for (Conversation.Participant p : conversation.getParticipants()) {
+            if (!p.getUserId().equals(currentUserId)) {
+                RealtimeMessage notify = RealtimeMessage.builder()
+                        .toRoomId(p.getUserId())   // push tới room cá nhân của từng thành viên
+                        .type("group_created")
+                        .payload(response)
+                        .build();
+                redisPublisherService.publish(notify);
+            }
+        }
+
+        return response;
     }
 
     public List<ConversationResponse> myConversations() {
@@ -195,16 +212,32 @@ public class ConversationService {
         // Check if current user is admin OR if the user is removing themselves
         boolean isAdmin = conversation.getParticipants().stream()
                 .anyMatch(p -> p.getUserId().equals(currentUserId) && p.isAdmin());
-        
+
         if (!isAdmin && !currentUserId.equals(userId)) {
             throw new RuntimeException("No permission to remove this participant");
         }
 
         conversation.getParticipants().removeIf(p -> p.getUserId().equals(userId));
-
-        // If no participants left, maybe delete the conversation? For now just save.
         conversationRepository.save(conversation);
-        
+
+        // Lấy tên người bị xóa/rời để hiển thị trong system message
+        String displayName = userId;
+        try {
+            UserProfileResponse profile = profileClient.getProfile(userId);
+            if (profile != null && profile.getFullName() != null) {
+                displayName = profile.getFullName();
+            }
+        } catch (Exception e) {
+            log.warn("Không lấy được profile của user {}: {}", userId, e.getMessage());
+        }
+
+        // Phân biệt tự rời hay bị kick
+        if (currentUserId.equals(userId)) {
+            systemMessageService.send(conversationId, displayName + " đã rời khỏi nhóm", "SYSTEM_LEFT_GROUP");
+        } else {
+            systemMessageService.send(conversationId, displayName + " đã bị xóa khỏi nhóm", "SYSTEM_KICKED");
+        }
+
         return toConversationResponse(conversation, currentUserId, false);
     }
 

@@ -17,13 +17,16 @@ import { useSocket } from "../../../context/SocketContext";
 import { ConversationDetails } from "./ConversationDetails";
 import { ImageViewer } from "../../../components/ImageViewer/ImageViewer";
 
-export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage, revokedMessage, editedMessage, reactionUpdate }) {
+export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage, revokedMessage, editedMessage, reactionUpdate, onLeaveGroup }) {
   const { profile } = useSelector(state => state.user);
   const { isAnotherTabBusy, callStatus } = useSelector(state => state.call);
   const dispatch = useDispatch();
   const socket = useSocket();
   const [messages, setMessages] = useState([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
   const [messageInput, setMessageInput] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -31,6 +34,8 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const messagesTopRef = useRef(null);
+  const scrollContainerRef = useRef(null);
   const emojiRef = useRef(null);
   const emojiPickerRef = useRef(null);
 
@@ -50,6 +55,9 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerMediaList, setViewerMediaList] = useState([]);
   const [viewerIndex, setViewerIndex] = useState(0);
+  const scrollTimeoutRef = useRef(null);
+  // Flag: chỉ scroll xuống cuối khi load lần đầu hoặc có tin mới — không scroll khi load thêm tin cũ
+  const shouldScrollToBottom = useRef(true);
 
   const handleOpenViewer = (media, index) => {
     const formattedMedia = media.map(m => ({
@@ -61,14 +69,22 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
     setViewerOpen(true);
   };
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom chỉ khi flag = true
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (shouldScrollToBottom.current) {
+      const container = scrollContainerRef.current;
+      if (container) {
+        // Dùng CSS scroll-behavior smooth, set scrollTop để browser tự animate
+        container.style.scrollBehavior = "smooth";
+        container.scrollTop = container.scrollHeight;
+      }
+    }
   }, [messages]);
 
   // Handle incoming real-time message (New Message)
   useEffect(() => {
     if (incomingMessage && conversation && incomingMessage.conversationId === conversation.id) {
+      shouldScrollToBottom.current = true; // Tin mới → scroll xuống cuối
       setMessages((prev) => {
         // Prevent duplicates
         if (prev.some((msg) => msg.id === incomingMessage.id)) return prev;
@@ -218,20 +234,23 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
       }
 
       setMessagesLoading(true);
+      setCurrentPage(0);
+      setHasMore(false);
+      shouldScrollToBottom.current = true; // Load lần đầu → scroll xuống cuối
       try {
-        const res = await messageApi.getMessages(conversation.id);
+        const res = await messageApi.getMessagesPaged(conversation.id, 0, 30);
         const data = res.data || res;
 
         if (data && data.code === 1000) {
-          // Backend returns newest first -> Reverse to show oldest on top
-          const sortedMsgs = (data.result || [])
+          const result = data.result;
+          // Backend trả mới nhất trước → reverse để hiện cũ trên đầu
+          const sortedMsgs = (result.messages || [])
             .slice()
             .reverse()
-            .map((m) => ({
-              ...m,
-              isMe: checkIsMe(m),
-            }));
+            .map((m) => ({ ...m, isMe: checkIsMe(m) }));
           setMessages(sortedMsgs);
+          setHasMore(result.hasMore || false);
+          setCurrentPage(0);
         } else {
           setMessages([]);
         }
@@ -245,6 +264,48 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
 
     fetchMessages();
   }, [conversation?.id, profile]);
+
+  // Load thêm tin cũ hơn khi scroll lên đầu
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore || !conversation?.id) return;
+
+    setLoadingMore(true);
+    shouldScrollToBottom.current = false; // Load thêm tin cũ → giữ nguyên vị trí scroll
+    const nextPage = currentPage + 1;
+
+    // Lưu scroll height trước khi thêm tin cũ để giữ vị trí scroll
+    const container = scrollContainerRef.current;
+    const prevScrollHeight = container?.scrollHeight || 0;
+
+    try {
+      const res = await messageApi.getMessagesPaged(conversation.id, nextPage, 30);
+      const data = res.data || res;
+
+      if (data && data.code === 1000) {
+        const result = data.result;
+        const olderMsgs = (result.messages || [])
+          .slice()
+          .reverse()
+          .map((m) => ({ ...m, isMe: checkIsMe(m) }));
+
+        setMessages(prev => [...olderMsgs, ...prev]);
+        setHasMore(result.hasMore || false);
+        setCurrentPage(nextPage);
+
+        // Restore scroll position sau khi DOM update
+        requestAnimationFrame(() => {
+          if (container) {
+            container.style.scrollBehavior = "auto"; // tắt smooth khi restore position
+            container.scrollTop = container.scrollHeight - prevScrollHeight;
+          }
+        });
+      }
+    } catch (err) {
+      console.error("❌ loadMore error:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleInitiateCall = async (type) => {
     const partnerId = conversation.partnerId || (conversation.user && conversation.user.userId) || conversation.userId;
@@ -424,10 +485,34 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 chat-scroll">
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 overflow-y-auto p-6 space-y-4 chat-scroll"
+          onScroll={(e) => {
+            // Debounce 500ms — tránh trigger load liên tục khi scroll lên
+            if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+            scrollTimeoutRef.current = setTimeout(() => {
+              if (e.target.scrollTop < 100 && hasMore && !loadingMore) {
+                handleLoadMore();
+              }
+            }, 500);
+          }}
+        >
+          {/* Load more indicator */}
+          {loadingMore && (
+            <div className="flex justify-center py-2">
+              <Spinner className="w-5 h-5 text-gray-500" />
+            </div>
+          )}
+          {!hasMore && messages.length > 0 && (
+            <div className="flex justify-center py-2">
+              <span className="text-xs text-gray-600">Đã tải hết tin nhắn</span>
+            </div>
+          )}
           {messagesLoading ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex flex-col items-center justify-center h-full gap-3">
               <Spinner className="w-8 h-8 text-gray-500" />
+              <span className="text-sm text-gray-500">Loading messages...</span>
             </div>
           ) : messages && messages.length > 0 ? (
             messages.map((msg, index) => {
@@ -458,6 +543,13 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                 {msg.type === "SYSTEM_STREAK_RESTORED" && (
                   <div className="flex items-center justify-center my-2">
                     <span className="text-sm text-green-400">{msg.content}</span>
+                  </div>
+                )}
+
+                {/* System message — rời nhóm / bị kick */}
+                {(msg.type === "SYSTEM_LEFT_GROUP" || msg.type === "SYSTEM_KICKED") && (
+                  <div className="flex items-center justify-center my-2">
+                    <span className="text-sm text-gray-400">{msg.content}</span>
                   </div>
                 )}
 
@@ -712,7 +804,7 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
         </div>
       </div>
       {isInfoOpen && (
-        <ConversationDetails conversation={conversation} onClose={() => setIsInfoOpen(false)} />
+        <ConversationDetails conversation={conversation} onClose={() => setIsInfoOpen(false)} onLeaveGroup={onLeaveGroup} />
       )}
 
       <ImageViewer

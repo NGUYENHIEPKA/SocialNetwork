@@ -1,12 +1,9 @@
 package com.DuyHao.chat_service.service;
 
-import com.DuyHao.chat_service.dto.RealtimeMessage;
 import com.DuyHao.chat_service.dto.response.StreakResponse;
 import com.DuyHao.chat_service.entity.Conversation;
-import com.DuyHao.chat_service.entity.Message;
 import com.DuyHao.chat_service.entity.Streak;
 import com.DuyHao.chat_service.repository.ConversationRepository;
-import com.DuyHao.chat_service.repository.MessageRepository;
 import com.DuyHao.chat_service.repository.StreakRepository;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -30,8 +27,8 @@ public class StreakService {
 
     StreakRepository streakRepository;
     ConversationRepository conversationRepository;
-    MessageRepository messageRepository;
     RedisPublisherService redisPublisherService;
+    SystemMessageService systemMessageService;
 
     static DateTimeFormatter MONTH_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM");
     static ZoneId VIETNAM_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
@@ -170,9 +167,9 @@ public class StreakService {
         log.info("[STREAK] User {} khôi phục streak về {} cho conversation {}",
                 currentUserId, streak.getStreakCount(), conversationId);
 
-        // Lưu system message "Streak đã được khôi phục 🔥. Còn X lần trong tháng này."
+        // Gửi system message "Streak đã được khôi phục 🔥. Còn X lần trong tháng này."
         int remaining = Math.max(0, 3 - streak.getRestoreUsedThisMonth());
-        saveSystemMessage(
+        systemMessageService.send(
                 conversationId,
                 "Streak đã được khôi phục 🔥. Còn có thể khôi phục " + remaining + " lần trong tháng này.",
                 "SYSTEM_STREAK_RESTORED"
@@ -206,8 +203,8 @@ public class StreakService {
                 log.info("[STREAK] Reset streak {} cho conversation {}",
                         lostCount, streak.getConversationId());
 
-                // Lưu system message "Đã mất Streak X ngày 🔥"
-                saveSystemMessage(
+                // Gửi system message "Đã mất Streak X ngày 🔥"
+                systemMessageService.send(
                         streak.getConversationId(),
                         "Đã mất Streak " + lostCount + " ngày 🔥",
                         "SYSTEM_STREAK_LOST"
@@ -239,38 +236,6 @@ public class StreakService {
     }
 
     // ==================== PRIVATE HELPERS ====================
-    private void saveSystemMessage(String conversationId, String content, String type) {
-        try {
-            Message sysMsg = Message.builder()
-                    .conversationId(conversationId)
-                    .senderId("SYSTEM")
-                    .content(content)
-                    .type(type)
-                    .createdAt(java.time.LocalDateTime.now())
-                    .build();
-            sysMsg = messageRepository.save(sysMsg);
-
-            com.DuyHao.chat_service.dto.response.MessageResponse payload =
-                    com.DuyHao.chat_service.dto.response.MessageResponse.builder()
-                            .id(sysMsg.getId())
-                            .conversationId(conversationId)
-                            .content(sysMsg.getContent())
-                            .type(sysMsg.getType())
-                            .createdAt(sysMsg.getCreatedAt())
-                            .isMe(false)
-                            .build();
-
-            RealtimeMessage rtMessage = RealtimeMessage.builder()
-                    .toRoomId(conversationId)
-                    .type("message")
-                    .payload(payload)
-                    .build();
-
-            redisPublisherService.publish(rtMessage);
-        } catch (Exception e) {
-            log.error("[STREAK] Lỗi lưu system message cho conversation {}: {}", conversationId, e.getMessage());
-        }
-    }
 
     private Streak createNewStreak(String conversationId, String senderId) {
         Conversation conversation = conversationRepository.findById(conversationId)

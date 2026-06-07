@@ -16,6 +16,9 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -35,26 +38,33 @@ public class MessageService {
     RedisPublisherService redisPublisherService;
     StreakService streakService;
 
-    public List<MessageResponse> getMessages(String conversationId) {
+    /**
+     * Lấy messages có phân trang — trả về mới nhất trước (page 0 = tin mới nhất).
+     * hasMore = true nếu còn trang tiếp theo (tin cũ hơn).
+     */
+    public record PagedMessagesResult(List<MessageResponse> messages, boolean hasMore) {}
+
+    public PagedMessagesResult getMessagesPaged(String conversationId, int page, int size) {
         String currentUserId = SecurityContextHolder.getContext().getAuthentication().getName();
 
-        // Check if participant
         Conversation conv = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> new RuntimeException("Conversation not found"));
-        
+
         boolean isParticipant = conv.getParticipants().stream()
                 .anyMatch(p -> p.getUserId().equals(currentUserId));
-        
+
         if (!isParticipant) {
             throw new RuntimeException("Access denied");
         }
 
-        List<Message> messages = messageRepository.findAllByConversationIdOrderByCreatedAtDesc(conversationId);
+        Pageable pageable = PageRequest.of(page, size);
+        Page<Message> messagePage = messageRepository.findAllByConversationIdOrderByCreatedAtDesc(conversationId, pageable);
 
-        // Fetch sender profiles for better display
-        return messages.stream()
+        List<MessageResponse> responses = messagePage.getContent().stream()
                 .map(msg -> toMessageResponse(msg, currentUserId))
                 .collect(Collectors.toList());
+
+        return new PagedMessagesResult(responses, messagePage.hasNext());
     }
 
     public MessageResponse create(MessageRequest request) {

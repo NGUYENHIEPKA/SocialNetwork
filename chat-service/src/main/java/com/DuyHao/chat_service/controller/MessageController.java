@@ -9,7 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -25,10 +25,18 @@ public class MessageController {
                 .build();
     }
 
-    @GetMapping("/{conversationId}")
-    ApiResponse<List<MessageResponse>> getMessages(@PathVariable String conversationId) {
-        return ApiResponse.<List<MessageResponse>>builder()
-                .result(messageService.getMessages(conversationId))
+    @GetMapping("/{conversationId}/paged")
+    ApiResponse<Map<String, Object>> getMessagesPaged(
+            @PathVariable String conversationId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "30") int size) {
+        MessageService.PagedMessagesResult result = messageService.getMessagesPaged(conversationId, page, size);
+        return ApiResponse.<Map<String, Object>>builder()
+                .result(Map.of(
+                        "messages", result.messages(),
+                        "hasMore", result.hasMore(),
+                        "page", page
+                ))
                 .build();
     }
 

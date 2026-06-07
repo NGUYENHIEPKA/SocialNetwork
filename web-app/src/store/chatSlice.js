@@ -132,6 +132,11 @@ const chatSlice = createSlice({
         if (!exists) {
             state.conversations.unshift(newConv);
         }
+    },
+
+    removeConversation: (state, action) => {
+        const conversationId = action.payload;
+        state.conversations = state.conversations.filter(c => c.id !== conversationId);
     }
   },
   extraReducers: (builder) => {
@@ -162,5 +167,5 @@ const chatSlice = createSlice({
   },
 });
 
-export const { receiveSocketMessage, receiveRevokeMessage, receiveEditMessage, receiveReactionUpdate, setConversationReadLocal, addNewConversation } = chatSlice.actions;
+export const { receiveSocketMessage, receiveRevokeMessage, receiveEditMessage, receiveReactionUpdate, setConversationReadLocal, addNewConversation, removeConversation } = chatSlice.actions;
 export default chatSlice.reducer;

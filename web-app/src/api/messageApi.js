@@ -17,8 +17,8 @@ export const messageApi = {
         return axiosClient.post(url, payload)
     },
 
-    getMessages(conversationId) {
-        const url = `chat/messages/${conversationId}`;
+    getMessagesPaged(conversationId, page = 0, size = 30) {
+        const url = `chat/messages/${conversationId}/paged?page=${page}&size=${size}`;
         return axiosClient.get(url);
     },
 

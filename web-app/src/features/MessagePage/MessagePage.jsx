@@ -151,6 +151,17 @@ export function MessagesPage({ onBack }) {
     }
   };
 
+  // Callback khi rời nhóm — deselect conversation hiện tại, select cái tiếp theo nếu có
+  const handleLeaveGroup = (conversationId, nextConversation) => {
+    if (selectedConversation?.id === conversationId) {
+      if (nextConversation) {
+        handleConversationSelected(nextConversation);
+      } else {
+        setSelectedConversation(null);
+      }
+    }
+  };
+
   // Callback when a message is sent in ChatWindow
   const handleSendMessageSuccess = (newMsg) => {
     // Update Redux
@@ -176,6 +187,7 @@ export function MessagesPage({ onBack }) {
         revokedMessage={latestRevokedMessage}
         editedMessage={latestEditedMessage}
         reactionUpdate={latestReactionUpdate}
+        onLeaveGroup={handleLeaveGroup}
       />
     </div>
   );

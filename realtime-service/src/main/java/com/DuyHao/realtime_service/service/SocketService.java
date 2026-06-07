@@ -103,6 +103,10 @@ public class SocketService {
                     
                     userSessions.computeIfAbsent(userId, k -> new CopyOnWriteArraySet<>()).add(client.getSessionId());
                     sessionUserMap.put(client.getSessionId(), userId);
+
+                    // Tự động join room cá nhân (roomId = userId) để nhận các event trực tiếp
+                    // như group_created, kicked, v.v.
+                    client.joinRoom(userId);
                     
                     // Cập nhật trạng thái Online lên Redis
                     redisTemplate.opsForValue().set("user:online:" + userId, "true");
