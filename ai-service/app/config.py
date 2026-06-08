@@ -15,16 +15,8 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Model
     # ------------------------------------------------------------------
-    # Mac dinh: NlpHUST/gpt2-vietnamese (125M params, ~500MB)
-    #   - Pretrain tren tieng Viet → tieng Viet rat tot
-    #   - Tieng Anh: hoc duoc qua fine-tune (do byte-level BPE tokenizer)
-    #     voi dataset hien tai (3K+ EN samples), du de sinh EN tu nhien
-    #   - Nhe + nhanh tren CPU laptop (~3-5s/request sau fine-tune)
-    #
-    # NEU MUON TIENG ANH MANH HON (chap nhan cham hon ~3x):
-    #   "facebook/xglm-564M"        (564M, multilingual chinh hieu)
-    #   "bigscience/bloom-560m"     (560M, multilingual moi hon)
-    # Doi BASE_MODEL_NAME ben duoi va re-train tren Colab.
+    # NlpHUST/gpt2-vietnamese (125M, ~500MB): pretrain tieng Viet, nhe va
+    # nhanh tren CPU. Tieng Anh hoc duoc qua fine-tune.
     BASE_MODEL_NAME: str = "NlpHUST/gpt2-vietnamese"
 
     MODEL_SAVE_DIR: str = str(BASE_DIR / "saved_models")

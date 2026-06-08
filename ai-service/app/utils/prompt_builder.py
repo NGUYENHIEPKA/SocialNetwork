@@ -7,10 +7,10 @@ Format khop voi du lieu train trong data/build_dataset.py:
 Khi infer, prompt = "Chủ đề: <topic>. Status:" — model se sinh phan tiep theo.
 
 Topic duoc xay dung tu (theo thu tu uu tien):
-  1. context (chuoi tu nhien user nhap, vi du "đi ăn")
+  1. context (chuoi tu nhien user nhap)
   2. keywords (list tu khoa)
   3. category (enum) — map sang ten tieng Viet
-Mood neu co se duoc append vao prefix (vi du "đi ăn vui vẻ").
+Mood neu co se duoc append vao prefix.
 """
 
 from typing import List, Optional

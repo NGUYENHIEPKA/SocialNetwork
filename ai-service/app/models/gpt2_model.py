@@ -2,11 +2,11 @@
 GPT-2 model manager: load base model, load fine-tuned model, generate text.
 Runs 100% locally — no external API calls.
 
-Toi uu cho toc do:
-  - Batch generate (1 lan goi sinh N sequences) thay vi loop N lan
-  - Cache key theo prompt -> suggest lap lai cuc nhanh
-  - Quality filter: loai noise (BBT:, PVNR, so dien thoai, URL, cau chua xong)
-  - Smart dedup: hai cau co cung body (chi khac duoi emoji) -> coi la trung
+Toi uu:
+  - Batch generate sinh N sequences trong 1 lan goi
+  - Cache key theo prompt
+  - Quality filter loc noise va cau chua hoan chinh
+  - Smart dedup theo body (bo qua khac biet emoji)
 """
 
 from __future__ import annotations
@@ -215,15 +215,14 @@ class GPT2ModelManager:
         "☀-➿"             # misc symbols, dingbats
         "⌀-⏿"             # technical
         "⬀-⯿"             # arrows
-        "︀-️"             # variation selectors (❤️ = ❤ + U+FE0F)
-        "‍"                    # zero-width joiner (cho compound emoji)
+        "︀-️"             # variation selectors
+        "‍"                    # zero-width joiner
         "\U0001F1E6-\U0001F1FF"     # regional indicator (flags)
         "\U0001F3FB-\U0001F3FF"     # skin tone modifiers
         "]"
     )
 
-    # Tu noi/lien tu — neu cau ket thuc bang nhung tu nay -> cau chua hoan chinh
-    # CHU Y: KHONG include "quá", "lắm", "rồi" — la endings hop le trong tieng Viet
+    # Lien tu/gioi tu — cau ket thuc bang cac tu nay coi nhu chua hoan chinh.
     _INCOMPLETE_ENDERS = {
         # Vietnamese lien tu/gioi tu KHONG dung de ket cau
         "vì", "mà", "và", "thì", "nhưng", "cũng",
@@ -238,15 +237,8 @@ class GPT2ModelManager:
 
     @classmethod
     def _normalize_body(cls, text: str) -> str:
-        """
-        Lay phan 'body' cua text (bo emoji, dau cau cuoi, chu cai don le).
-        Dung de dedup: hai cau co cung body nhung khac emoji se bi coi la trung.
-
-        Vi du:
-          "Mua được đôi giày 50% 👞🏠"  -> "mua được đôi giày 50%"
-          "Mua được đôi giày 50% 👠🌟"  -> "mua được đôi giày 50%"
-          Cung body -> coi la trung.
-        """
+        """Lay phan body cua text (bo emoji, dau cau cuoi, chu cai don le)
+        de dedup cau co cung body nhung khac emoji."""
         text = cls._EMOJI_RE.sub(" ", text)
         text = re.sub(r"\b[A-Za-z]\b", " ", text)
         text = re.sub(r"[\s.,!?;:\-—–]+$", "", text)
@@ -275,9 +267,8 @@ class GPT2ModelManager:
         text = re.sub(r"https?://\S+", "", text)
         text = re.sub(r"pic\.twitter\S*", "", text)
 
-        # 5. Cat tai EMOJI CLUSTER hoac dau cau DAU TIEN (sau khoang text du dai)
-        # Status mang xa hoi thuong co format: "<text>. <emoji cluster>"
-        # Sau cluster nay = model bat dau sinh cau MOI = rac -> cat.
+        # 5. Cat tai EMOJI CLUSTER hoac dau cau DAU TIEN (sau khoang text du dai).
+        # Sau cluster nay model thuong bat dau sinh cau moi => rac -> cat.
         MIN_END_POS = 15
         end_pos = -1
         i = 0
@@ -322,10 +313,8 @@ class GPT2ModelManager:
 
     @classmethod
     def _limit_trailing_emojis(cls, text: str, max_count: int = 4) -> str:
-        """
-        Gioi han so emoji o cuoi cau xuong toi da `max_count`.
-        Chu y: ❤️ = ❤ + U+FE0F la 1 emoji (modifier khong dem rieng).
-        """
+        """Gioi han so emoji o cuoi cau xuong toi da max_count.
+        Variation selector / skin tone modifier khong dem rieng."""
         n = len(text)
 
         # Tim vi tri bat dau cua khoi emoji cuoi

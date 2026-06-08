@@ -1,12 +1,11 @@
 """
 Dataset utilities: load, validate, va prepare training data.
 
-Format file JSONL (data/training_data.jsonl) do data/build_dataset.py sinh ra:
-    {"text": "Chủ đề: đi ăn. Status: Hôm nay đi ăn bún bò Huế ngon quá!"}
-    {"text": "Chủ đề: cà phê. Status: Sáng nay pha một ly cà phê đen…"}
+Format file JSONL (data/training_data.jsonl) do data/build_dataset.py sinh ra,
+moi dong la mot doi tuong dang: {"text": "Chủ đề: <X>. Status: <Y>"}
 
-Cau truc "Chủ đề: <X>. Status: <Y>" giup model hoc duoc mapping
-"chu de X → status lien quan toi X" khi fine-tune.
+Cau truc tren giup model hoc mapping "chu de X → status lien quan toi X"
+khi fine-tune.
 """
 
 import json

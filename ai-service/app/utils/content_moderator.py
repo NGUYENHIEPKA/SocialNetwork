@@ -1,8 +1,6 @@
 """
 Content Moderator — phát hiện nội dung nhạy cảm trong bài đăng mạng xã hội.
 
-Chạy hoàn toàn local, không cần API ngoài.
-
 Phân loại:
   profanity      — từ tục tĩu, chửi thề
   hate_speech    — kỳ thị, phân biệt đối xử
@@ -25,14 +23,19 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 
-# ---------------------------------------------------------------------------
 # Từ điển nhạy cảm
-# ---------------------------------------------------------------------------
 
 _PROFANITY: List[str] = [
     # ── Viết tắt chửi thề tiếng Việt ──────────────────────────────────────
     "đmm", "đm", "đkm", "đcm", "dmm", "dm", "vl", "vkl",
     "clgt", "clm", "đl", "đll", "wtf", "stfu", "omfg",
+    "vcl", "vlz", "vcll", "vlon", "vlin", "vloz", "vailol", "vailoz",
+    "cmm", "cmnr", "cmnl", "dmcs", "dmcc", "đmcs", "đcmm", "đkmm",
+    "đệt", "đệt mẹ", "đệt cha", "đệt con", "đệch", "đệch mẹ",
+    "đếch", "đếch biết", "đếch hiểu", "đếch cần", "đếch quan tâm",
+    "đếk", "đếk biết", "đếk hiểu",
+    "vlxx", "vl loz", "vl đỉnh", "vl thật", "vl thiệt",
+    "lozz", "lozzz", "loz",
     # ── Câu chửi đầy đủ tiếng Việt ────────────────────────────────────────
     "mẹ kiếp", "mẹ mày", "tiên sư mày", "tiên sư cha mày",
     "cha mày", "má mày", "bố mày chết", "đồ con hoang",
@@ -53,6 +56,11 @@ _PROFANITY: List[str] = [
     # ── Từ tục tiếng Việt ──────────────────────────────────────────────────
     "địt", "địt mẹ", "địt cha", "cặc", "lồn", "buồi",
     "đụ", "đụ mẹ", "đụ má", "đụ cha",
+    "dume", "đụmẹ", "duma", "đụmá", "ducha", "đụcha",
+    "ditme", "địtmẹ", "ditcha", "địtcha", "ditmemay",
+    "cackho", "concack", "concac",
+    "đjt", "djt",
+    "đéo",
     # ── Từ xúc phạm đứng độc lập (word-boundary) ──────────────────────────
     "ngu", "khốn", "điên", "đần", "ngốc",
     "hèn", "dốt", "tởm", "ghê tởm",
@@ -93,6 +101,30 @@ _HATE_SPEECH: List[str] = [
     "đám ăn hại", "bọn nghèo hèn", "đám dốt nát", "bọn thất học",
     "người béo đáng bị ghét", "đồ mập xấu xí",
     "phụ nữ không đáng được tôn trọng", "đàn bà chỉ là đồ vật",
+    # ── Body/appearance shaming (VI) ──────────────────────────────────────
+    # Béo / mập
+    "béo như lợn", "béo như heo", "béo ú", "béo ục ịch", "đồ béo phì",
+    "mập như heo", "mập như lợn", "mập ú", "đồ mập ú",
+    "heo nái", "con heo nái",
+    # Gầy / ốm
+    "gầy như que", "gầy như que củi", "gầy trơ xương", "ốm nhom ốm nhách",
+    "ốm như cò", "ốm như que",
+    # Lùn
+    "đồ lùn", "thằng lùn", "con lùn", "lùn tịt", "lùn xủn", "lùn như nấm",
+    # Xấu / mặt
+    "xấu như ma", "xấu như quỷ", "mặt như khỉ", "mặt như heo",
+    "mặt như chó", "mặt kinh dị", "xấu kinh dị", "xấu hoắc",
+    "đồ xấu xí", "mặt mẹt",
+    # ── Age shaming (VI) ──────────────────────────────────────────────────
+    "già cú đế", "già khú đế", "già hết thời", "bà già lú lẫn",
+    "ông già lú lẫn", "ông già lẩm cẩm", "bà già lẩm cẩm",
+    "đồ già nua", "lão già", "lão khốn", "mụ già",
+    # Tiếng Anh — body shaming
+    "ugly as hell", "ugly af", "fat pig", "fat cow", "fat ass",
+    "you are fat", "fatso", "lard ass",
+    "ugly bitch", "ugly motherfucker",
+    "midget", "shorty bitch",
+    "boomer trash", "old hag", "old fart",
     # ── Tiếng Anh — hate speech ───────────────────────────────────────────
     "nigger", "nigga", "negro",
     "chink", "gook", "spic", "wetback", "kike", "towelhead",
@@ -106,9 +138,17 @@ _HATE_SPEECH: List[str] = [
 ]
 
 _VIOLENCE: List[str] = [
+    # ── Imperative ngắn — đe dọa / xúi giục chết ─────────────────────────
+    # Bắt được cả viết tắt leet "gi3t di", "ch3t di"
+    "giết đi", "chết đi", "tự sát đi", "tự tử đi",
+    "giết mình đi", "tự giết đi", "đi chết đi",
     # ── Đe dọa trực tiếp (VI) ─────────────────────────────────────────────
     "tao giết mày", "tao sẽ giết", "tao giết chết", "tao định giết",
+    "giết mày", "bắn mày", "thịt mày",
+    "chémmày", "giếtmày", "đâmmày", "bắnmày", "đánhmày", "xửmày",
     "mày sẽ chết", "mày chết đi", "cho mày chết", "mày không sống được đâu",
+    # Biến thể "chếc" (c thay t cuối): mày chếc đi, chếc mẹ mày
+    "mày chếc", "mày chếc đi", "chếc mẹ mày", "chếc cha mày",
     "tao chém mày", "tao sẽ chém", "chém mày", "chém chết mày", "cho mày ăn dao",
     "tao đánh mày", "tao sẽ đánh", "đánh mày", "đánh đến chết", "đánh chết mày",
     "tao xử mày", "xử đẹp mày", "tao sẽ xử", "sẽ xử mày", "xử mày",
@@ -119,6 +159,19 @@ _VIOLENCE: List[str] = [
     "đâm chết", "đâm mày", "cầm dao đâm", "rút dao đâm",
     # ── Từ hành động nguy hiểm đứng độc lập ──────────────────────────────
     "chém", "đâm", "bắn", "thiêu", "tạt axit",
+    # Biến thể không dấu / dấu giả: che'm, che`m, chem — đều normalize về "chem".
+    "chem",
+    # ── Viết tắt
+    "t giết m", "tao giết m", "t giết mày",
+    "t đập m", "tao đập m", "t đập mày",
+    "t chết m", "t cho m chết", "t cho mày chết",
+    "t đánh m", "tao đánh m", "t đánh mày",
+    "t xử m", "tao xử m", "t xử mày",
+    "t bắn m", "tao bắn m", "t bắn mày",
+    "t chém m", "tao chém m", "t chém mày",
+    "t đâm m", "tao đâm m", "t đâm mày",
+    "t thịt m", "tao thịt m", "t thịt mày",
+    "t hành m", "tao hành m", "t hành mày",
     # ── Kêu gọi bạo lực nhóm (VI) ────────────────────────────────────────
     "đánh chết bọn", "giết hết bọn", "tiêu diệt bọn",
     "đánh hội đồng", "kéo nhau đi đánh", "rủ nhau đi đánh",
@@ -135,6 +188,18 @@ _VIOLENCE: List[str] = [
     "không muốn sống nữa", "muốn chết đi", "chán sống",
     "sẽ kết thúc tất cả", "lấy tính mạng", "kết liễu",
     "tự cắt tay", "tự làm đau bản thân",
+    # ── Cyberbullying / xúi giục tự hại (VI) ──────────────────────────────
+    "tự xử đi", "tự xử cho rồi", "tự xử cho xong",
+    "biến khỏi mạng", "biến khỏi facebook", "out khỏi đời",
+    "đừng sống nữa", "chết đi cho rồi", "chết quách cho xong",
+    "cút khỏi đây", "cút khỏi mạng",
+    # ── Doxing / đe dọa phát tán (VI) ─────────────────────────────────────
+    "tao biết nhà mày", "tao biết địa chỉ mày", "tao biết chỗ ở mày",
+    "tao biết số điện thoại mày", "tao biết trường mày",
+    "tao sẽ tung ảnh", "tao sẽ phát tán ảnh", "tao sẽ tung clip",
+    "đăng ảnh sỉ nhục", "đăng clip sỉ nhục",
+    "tung tin nhắn riêng", "leak tin nhắn", "leak ảnh riêng",
+    "doxing", "doxxing", "deanon mày",
     # ── Tiếng Anh — threats & violence ───────────────────────────────────
     "i will kill you", "i'll kill you", "gonna kill",
     "i will hurt you", "you will die", "you're dead",
@@ -177,6 +242,74 @@ _ADULT_CONTENT: List[str] = [
     "hookup for cash", "pay for sex",
 ]
 
+_DRUGS: List[str] = [
+    # ── Ma túy đá / methamphetamine (VI) ──────────────────────────────────
+    "hàng đá", "đá xanh", "đá tinh thể", "ma túy đá",
+    "ngáo đá", "lên đá", "đập đá", "chơi đá",
+    "bay đá",
+    # ── Heroin / hàng trắng (VI) ──────────────────────────────────────────
+    "hàng trắng", "bột trắng", "chích choác", "chích heroin",
+    "tép trắng", "tép vàng", "cắn tép",
+    # ── Ketamine / ke (VI) ────────────────────────────────────────────────
+    "chơi ke", "ke đêm", "ke đá", "phê ke",
+    # ── Cần sa / marijuana (VI) ───────────────────────────────────────────
+    "cần sa", "cỏ mỹ", "hút cỏ", "cuốn cỏ", "cuốn cần",
+    "lá cần", "bồ đà", "thuốc lào tẩm",
+    # ── Thuốc lắc / MDMA (VI) ─────────────────────────────────────────────
+    "thuốc lắc", "viên lắc", "bay lắc", "đi bay", "đập lắc",
+    "lắc đêm", "kẹo lắc",
+    # ── GHB / nước vui (VI) ───────────────────────────────────────────────
+    "nước vui", "thuốc kích dục",
+    # ── Bóng cười / shisha có chất ────────────────────────────────────────
+    "bóng cười", "shisha bay", "shisha có hàng",
+    # ── Buôn bán / sử dụng (VI) ───────────────────────────────────────────
+    "mua ma túy", "bán ma túy", "buôn ma túy", "shop ma túy",
+    "ship hàng đá", "giao hàng đá", "kèo bay",
+    "phê pha", "chơi thuốc", "bay đêm cùng",
+    # ── Tiếng Anh — drug terms ────────────────────────────────────────────
+    "marijuana", "weed", "ganja", "pot weed",
+    "cocaine", "crack cocaine", "snort coke",
+    "heroin", "smack heroin",
+    "meth", "methamphetamine", "crystal meth", "ice meth",
+    "ecstasy pill", "mdma", "molly pill",
+    "lsd trip", "acid trip", "acid tab",
+    "shroom", "magic mushroom", "psilocybin",
+    "fentanyl", "ketamine k",
+    "drug dealer", "selling drugs", "buying drugs", "drug pusher",
+    "get high", "getting high on", "smoking weed",
+]
+
+_GAMBLING: List[str] = [
+    # ── Cá độ thể thao (VI) ───────────────────────────────────────────────
+    "cá độ bóng đá", "cá độ thể thao", "cá độ tennis", "cá cược bóng đá",
+    "kèo bóng", "kèo châu á", "kèo châu âu", "kèo tài xỉu",
+    "ăn kèo", "bể kèo", "kèo thơm", "kèo vip", "kèo nội bộ",
+    "tip xanh chín", "tip kèo",
+    # ── Lô đề / xổ số chui (VI) ───────────────────────────────────────────
+    "lô đề", "đánh đề", "ghi đề", "chốt đề", "đầu đề", "đuôi đề",
+    "lô tô chui", "đánh lô", "ghi lô", "chốt lô",
+    "soi cầu", "dàn đề", "dàn lô", "dàn xíu", "dàn 4 số",
+    "lô xiên", "đề xiên",
+    # ── Bài bạc (VI) ──────────────────────────────────────────────────────
+    "tài xỉu", "xóc đĩa", "ba cây", "tiến lên ăn tiền",
+    "phỏm ăn tiền", "đánh phỏm tiền", "đánh bạc online",
+    "sòng bài online", "sòng bạc online", "casino online", "casino lậu",
+    "baccarat online", "blackjack tiền", "roulette online",
+    "slot game tiền", "nổ hũ", "game nổ hũ",
+    # ── Đá gà ─────────────────────────────────────────────────────────────
+    "đá gà online", "đá gà trực tuyến", "đá gà cựa sắt online",
+    "cá độ đá gà",
+    # ── Nhà cái / link cược (VI) ──────────────────────────────────────────
+    "nhà cái uy tín", "đại lý nhà cái", "link nhà cái",
+    "link cá độ", "link cược uy tín", "link cược nhanh",
+    "nạp tiền nhà cái", "rút tiền nhà cái", "hoàn tiền cược",
+    # ── Tiếng Anh — gambling ──────────────────────────────────────────────
+    "online casino", "sports betting site", "place a bet",
+    "betting site", "betting tips", "betting kèo",
+    "poker for money", "blackjack for money", "slot machine online",
+    "bookmaker site", "odds betting",
+]
+
 _SPAM_PATTERNS: List[str] = [
     # ── Kiếm tiền nhanh / đa cấp (VI) ────────────────────────────────────
     "kiếm tiền online dễ dàng", "kiếm triệu mỗi ngày",
@@ -203,6 +336,32 @@ _SPAM_PATTERNS: List[str] = [
     "thuốc tăng cường sinh lý", "thuốc cường dương",
     "thuốc ngoài luồng", "thuốc không rõ nguồn gốc",
     "mua followers", "tăng like ảo", "view ảo giá rẻ",
+    # ── App vay nóng / tín dụng đen (VI) ──────────────────────────────────
+    "vay tiền online", "vay tiền nhanh online", "vay tiền không thế chấp",
+    "vay không cần cccd", "vay không cần thẩm định", "vay không cần gặp mặt",
+    "app vay nóng", "app vay tiền nhanh", "vay nóng giải ngân ngay",
+    "giải ngân trong ngày", "duyệt vay 24/7", "vay 5 triệu nhận liền",
+    "tín dụng đen", "vay tiền bùng được",
+    # ── Romance scam (VI) ─────────────────────────────────────────────────
+    "muốn gửi quà cho em", "muốn gửi tiền cho em",
+    "đóng phí hải quan", "đóng phí nhận quà", "đóng phí thông quan",
+    "kiện hàng bị giữ", "kiện hàng đang bị giữ",
+    # ── Giả mạo / phishing (VI) ───────────────────────────────────────────
+    "tài khoản bị khóa", "tài khoản bị tạm khóa", "xác minh tài khoản ngay",
+    "xác thực tài khoản gấp", "xác minh otp", "cung cấp otp",
+    "bưu phẩm chưa giao", "bưu phẩm bị giữ", "click nhận bưu phẩm",
+    "shipper giao hàng giả", "giả mạo shipper",
+    "đơn hàng có vấn đề", "đơn hàng bị lỗi click",
+    "thông báo từ ngân hàng click", "thông báo cqdt", "công an điều tra liên hệ",
+    # ── Tiếng Anh — scam mở rộng ──────────────────────────────────────────
+    "loan no credit check", "instant loan no document",
+    "payday loan fast", "borrow money no collateral",
+    "i am a us soldier", "i am an army general",
+    "send me money for shipping", "pay customs fee",
+    "your account is locked", "verify your account immediately",
+    "verify your otp", "share your otp",
+    "your package is held", "click to release your package",
+    "irs final notice", "fbi investigation contact",
     # ── Tiếng Anh — spam / scam ───────────────────────────────────────────
     "click here to claim", "you have won", "congratulations you won",
     "free iphone", "free gift", "claim your prize", "limited time offer",
@@ -224,12 +383,8 @@ _SPAM_PATTERNS: List[str] = [
 _PERSONAL_INFO_PATTERNS: List[Tuple[str, str, str]] = [
     # (pattern, category_label, description)
     (
-        r"\b0[3-9]\d{8}\b",
-        "phone_number",
-        "Số điện thoại",
-    ),
-    (
-        r"\b0[1-9]\d{10}\b",
+        # SĐT VN bắt đầu bằng 0: 9-11 chữ số (bao gồm di động 10 số + cố định)
+        r"\b0\d{8,10}\b",
         "phone_number",
         "Số điện thoại",
     ),
@@ -255,9 +410,7 @@ _PERSONAL_INFO_PATTERNS: List[Tuple[str, str, str]] = [
     ),
 ]
 
-# ---------------------------------------------------------------------------
 # Cấu hình mức cảnh báo
-# ---------------------------------------------------------------------------
 
 # category → mức tối thiểu khi phát hiện
 _CATEGORY_SEVERITY: Dict[str, str] = {
@@ -267,6 +420,8 @@ _CATEGORY_SEVERITY: Dict[str, str] = {
     "adult_content": "severe",
     "personal_info": "moderate",
     "spam":          "mild",
+    "drugs":         "severe",
+    "gambling":      "moderate",
 }
 
 _LEVEL_ORDER = ["safe", "mild", "moderate", "severe"]
@@ -278,6 +433,8 @@ _CATEGORY_LABELS_VI: Dict[str, str] = {
     "adult_content": "Adult content",
     "personal_info": "Personal information",
     "spam":          "Advertising / Spam",
+    "drugs":         "Drugs / Illegal substances",
+    "gambling":      "Gambling / Betting",
 }
 
 _WARNING_MESSAGES: Dict[str, str] = {
@@ -287,10 +444,7 @@ _WARNING_MESSAGES: Dict[str, str] = {
     "severe":   "Your post violates community guidelines. This content cannot be posted.",
 }
 
-
-# ---------------------------------------------------------------------------
 # Kết quả phát hiện
-# ---------------------------------------------------------------------------
 
 @dataclass
 class FlaggedItem:
@@ -310,84 +464,157 @@ class ModerationResult:
     suggestion: str
 
 
-# ---------------------------------------------------------------------------
-# Chuẩn hóa văn bản
-# ---------------------------------------------------------------------------
+# Chuẩn hóa văn bản — dual mode
 
-def _normalize(text: str) -> str:
-    """
-    Chuẩn hóa để phát hiện cách viết biến thể:
-      - lowercase
-      - bỏ khoảng trắng thừa
-      - thu gọn ký tự lặp (đmmmmm → đmm)
-      - một số substitution phổ biến (@ → a, 0 → o)
-    """
+# Dấu giả ASCII (', `, ^, ~) gắn sau nguyên âm
+_FAKE_TONE_RE = re.compile(r"([aeiouyAEIOUY])[\'`\^~]+")
+
+# Biến thể chính tả phổ biến (áp dụng SAU khi đã bỏ dấu tiếng Việt).
+_PHONETIC_RE_SUBS: List[Tuple[re.Pattern, str]] = [
+    (re.compile(r"iec\b"), "iet"),
+    (re.compile(r"iek\b"), "iet"),
+]
+
+_LEET_SUBS: Dict[str, str] = {
+    "@": "a", "0": "o", "1": "i", "3": "e",
+    "4": "a", "5": "s", "7": "t", "8": "b", "$": "s",
+    "*": "", "!": "",
+}
+
+
+def _strip_diacritics(text: str) -> str:
+    """Bỏ dấu tiếng Việt + đ/Đ → d."""
+    text = text.replace("đ", "d").replace("Đ", "d")
+    decomposed = unicodedata.normalize("NFD", text)
+    return "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+
+
+def _normalize_soft(text: str) -> str:
+    """Chuẩn hóa nhẹ — giữ dấu tiếng Việt."""
+    text = unicodedata.normalize("NFC", text)
     text = text.lower().strip()
-    # Thay thế ký tự phổ biến
-    substitutions = {
-        "@": "a", "0": "o", "1": "i", "3": "e",
-        "4": "a", "5": "s", "8": "b", "$": "s",
-        "*": "", "!": "",
-    }
-    for k, v in substitutions.items():
+    text = _FAKE_TONE_RE.sub(r"\1", text)
+    for k, v in _LEET_SUBS.items():
         text = text.replace(k, v)
-    # Thu gọn ký tự lặp (>2 lần)
-    text = re.sub(r"(.)\1{2,}", r"\1\1", text)
-    # Collapse spaces
+    # Bỏ punctuation chèn giữa từ để né lọc: d.m, gi.ết, đ-m, đ_m, d·m, d/m, d:m
+    text = re.sub(r"(?<=\w)[.\-_·•/|:](?=\w)", "", text, flags=re.UNICODE)
+    # Ghép các từ 1-ký-tự liên tiếp thành 1 chuỗi
+    text = re.sub(
+        r"\b(?:\w\s+){2,}\w\b",
+        lambda m: m.group(0).replace(" ", ""),
+        text,
+        flags=re.UNICODE,
+    )
+    text = re.sub(r"(.)\1+", r"\1", text)
     text = re.sub(r"\s+", " ", text)
     return text
 
+# Phone normalization — chuyển chữ số tiếng Việt + bỏ separator giữa số
 
-def _build_pattern(word: str) -> re.Pattern:
-    """
-    Tạo regex cho từ / cụm từ:
-    - Từ ngắn ≤3 ký tự, không chứa khoảng trắng
-        → word-boundary để tránh false positive ("cl" trong "click")
-    - Cụm từ 2 từ có dạng "X Y" (chủ ngữ + hành động)
-        → cho phép 0-3 từ đệm giữa X và Y
-          vd: "tao chém mày" khớp cả "tao sẽ chém mày"
-    - Các cụm từ khác
-        → cho phép khoảng trắng / ký tự ngăn cách thông thường
-    """
-    is_short_abbrev = len(word) <= 3 and " " not in word
+_VI_NUM_WORDS: Dict[str, str] = {
+    "không": "0",
+    "một": "1", "mốt": "1",
+    "hai": "2",
+    "ba": "3",
+    "bốn": "4", "tư": "4",
+    "năm": "5", "lăm": "5", "nhăm": "5",
+    "sáu": "6",
+    "bảy": "7", "bẩy": "7",
+    "tám": "8",
+    "chín": "9",
+}
 
-    if is_short_abbrev:
-        escaped = re.escape(word)
-        pattern = r"(?<![a-zA-ZÀ-ỹ\d])" + escaped + r"(?![a-zA-ZÀ-ỹ\d])"
+_VI_NUM_RE = re.compile(
+    r"\b(" + "|".join(re.escape(w) for w in _VI_NUM_WORDS) + r")\b",
+    re.IGNORECASE | re.UNICODE,
+)
+
+
+def _normalize_phone(text: str) -> str:
+    """
+    Sinh phiên bản content dành riêng cho regex SĐT/CCCD/...:
+      - Chuyển chữ số tiếng Việt ("không", "chín", ...) → digit
+      - Bỏ separator (space/dot/dash/slash/...) GIỮA hai chữ số
+      → bắt được "0 chín bảy 5 4 5 5 8 8 2" và "0.1234-3939"
+    """
+    text = unicodedata.normalize("NFC", text).lower()
+    text = _VI_NUM_RE.sub(lambda m: _VI_NUM_WORDS[m.group(1).lower()], text)
+    text = re.sub(r"(?<=\d)[\s.\-_·•/|:()]+(?=\d)", "", text)
+    return text
+
+
+def _normalize(text: str) -> str:
+    """Chuẩn hóa mạnh = soft + strip dấu tiếng Việt + phonetic."""
+    text = _normalize_soft(text)
+    text = _strip_diacritics(text)
+    for pat, repl in _PHONETIC_RE_SUBS:
+        text = pat.sub(repl, text)
+    return text
+
+
+def _use_soft_mode(soft_normalized: str) -> bool:
+    """Từ ngắn (≤4 ký tự) đứng độc lập dùng soft mode để tránh
+    va chạm với từ tiếng Việt thông thường sau khi strip diacritics."""
+    return 0 < len(soft_normalized) <= 4 and " " not in soft_normalized
+
+
+def _build_pattern(normalized: str, soft_mode: bool) -> Optional[re.Pattern]:
+    if not normalized:
+        return None
+
+    boundary = r"[a-zA-ZÀ-ỹ\d]" if soft_mode else r"[a-z\d]"
+    parts = normalized.split()
+
+    if len(parts) == 1:
+        escaped = re.escape(normalized)
+        pattern = rf"(?<!{boundary}){escaped}(?!{boundary})"
         return re.compile(pattern, re.IGNORECASE | re.UNICODE)
 
-    parts = word.split()
-
     if len(parts) == 3:
-        # "A B C" → cho phép tối đa 2 từ đệm giữa mỗi cặp
         a, b, c = (re.escape(p) for p in parts)
         GAP = r"(?:\s+\S+){0,2}\s+"
         pattern = a + GAP + b + GAP + c
     elif len(parts) == 2:
-        # "A B" → cho phép tối đa 2 từ đệm ở giữa
         a, b = (re.escape(p) for p in parts)
         GAP = r"(?:\s+\S+){0,2}\s+"
         pattern = a + GAP + b
     else:
-        # cụm dài hơn → match linh hoạt khoảng trắng
-        escaped = re.escape(word)
+        escaped = re.escape(normalized)
         pattern = re.sub(r"\\ ", r"[\\s]+", escaped)
 
     return re.compile(pattern, re.IGNORECASE | re.UNICODE)
 
 
 # Pre-compile tất cả pattern một lần
+# Mỗi entry: (compiled_pattern, original_word, soft_mode_flag)
 _WORD_LISTS: Dict[str, List[str]] = {
     "profanity":    _PROFANITY,
     "hate_speech":  _HATE_SPEECH,
     "violence":     _VIOLENCE,
     "adult_content": _ADULT_CONTENT,
     "spam":         _SPAM_PATTERNS,
+    "drugs":        _DRUGS,
+    "gambling":     _GAMBLING,
 }
 
-_COMPILED: Dict[str, List[Tuple[re.Pattern, str]]] = {}
+_CompiledEntry = Tuple[re.Pattern, str, bool]
+_COMPILED: Dict[str, List[_CompiledEntry]] = {}
+
 for _cat, _words in _WORD_LISTS.items():
-    _COMPILED[_cat] = [(_build_pattern(w), w) for w in _words]
+    seen: set = set()
+    entries: List[_CompiledEntry] = []
+    for _w in _words:
+        _soft = _normalize_soft(_w)
+        _soft_mode = _use_soft_mode(_soft)
+        _normalized = _soft if _soft_mode else _normalize(_w)
+        _key = (_normalized, _soft_mode)
+        if not _normalized or _key in seen:
+            continue
+        seen.add(_key)
+        _pat = _build_pattern(_normalized, _soft_mode)
+        if _pat is not None:
+            entries.append((_pat, _w, _soft_mode))
+    _COMPILED[_cat] = entries
 
 _COMPILED_PERSONAL = [
     (re.compile(pat, re.IGNORECASE), label, desc)
@@ -416,14 +643,16 @@ def moderate(content: str, strict: bool = False) -> ModerationResult:
     Returns:
         ModerationResult với đầy đủ thông tin cảnh báo.
     """
-    normalized = _normalize(content)
+    soft_text = _normalize_soft(content)
+    full_text = _normalize(content)
     flagged: List[FlaggedItem] = []
     seen_words: set = set()
 
-    # 1. Kiểm tra từ điển
+    # 1. Kiểm tra từ điển — chọn target text theo mode của pattern
     for cat, patterns in _COMPILED.items():
-        for pattern, original_word in patterns:
-            if pattern.search(normalized):
+        for pattern, original_word, soft_mode in patterns:
+            target = soft_text if soft_mode else full_text
+            if pattern.search(target):
                 if original_word not in seen_words:
                     seen_words.add(original_word)
                     flagged.append(FlaggedItem(
@@ -433,10 +662,14 @@ def moderate(content: str, strict: bool = False) -> ModerationResult:
                         severity=_CATEGORY_SEVERITY[cat],
                     ))
 
-    # 2. Kiểm tra thông tin cá nhân (dùng text gốc, không normalize)
+    # 2. Kiểm tra thông tin cá nhân — chạy regex trên cả text gốc lẫn
+    #    phone-normalized (đã chuyển chữ số tiếng Việt và bỏ separator).
+    phone_text = _normalize_phone(content)
     for pattern, label, desc in _COMPILED_PERSONAL:
-        match = pattern.search(content)
-        if match:
+        for target in (content, phone_text):
+            match = pattern.search(target)
+            if not match:
+                continue
             matched_text = match.group(0)
             key = f"personal_info:{matched_text}"
             if key not in seen_words:
@@ -447,6 +680,7 @@ def moderate(content: str, strict: bool = False) -> ModerationResult:
                     category_label=f"{_CATEGORY_LABELS_VI['personal_info']} ({desc})",
                     severity=_CATEGORY_SEVERITY["personal_info"],
                 ))
+            break
 
     # 3. Tính mức cảnh báo tổng hợp
     warning_level = "safe"
@@ -494,5 +728,9 @@ def _build_suggestion(categories: List[str], level: str) -> str:
         tips.append("Consider removing sensitive personal information (phone, ID, email).")
     if "spam" in categories:
         tips.append("Remove advertising or potentially fraudulent content.")
+    if "drugs" in categories:
+        tips.append("Content promoting or referencing illegal drugs is not allowed.")
+    if "gambling" in categories:
+        tips.append("Gambling or betting promotion is not allowed on this platform.")
 
     return " ".join(tips)
