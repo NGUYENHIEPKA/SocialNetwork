@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { io } from 'socket.io-client';
 import { getAccessToken } from '../api/localStorageService';
-import { receiveSocketMessage, receiveRevokeMessage, receiveEditMessage, markConversationRead, fetchConversations, receiveReactionUpdate } from '../store/chatSlice';
+import { receiveSocketMessage, receiveRevokeMessage, receiveEditMessage, markConversationRead, fetchConversations, receiveReactionUpdate, updateConversationAvatar } from '../store/chatSlice';
 import { receiveNotification, removeNotification, updateNotificationItem } from '../store/notificationsSlice';
 import { setOnlineUsers, updateUserStatus } from '../store/onlineUsersSlice';
 import { receiveIncomingCall, setCallInProgress, endCallAction, setAnotherTabBusy } from '../store/callSlice';
@@ -119,6 +119,17 @@ export const SocketProvider = ({ children }) => {
         }
       } catch (error) {
         console.error("Socket group_created handling error:", error);
+      }
+    });
+
+    // Khi avatar nhóm thay đổi → update Redux cho tất cả thành viên
+    newSocket.on("group_avatar_updated", (data) => {
+      try {
+        if (data?.conversationId && data?.avatarUrl) {
+          dispatch(updateConversationAvatar({ conversationId: data.conversationId, avatarUrl: data.avatarUrl }));
+        }
+      } catch (error) {
+        console.error("Socket group_avatar_updated handling error:", error);
       }
     });
 
