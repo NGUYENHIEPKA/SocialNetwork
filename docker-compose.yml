@@ -275,19 +275,6 @@ services:
     restart: unless-stopped
     ports:
       - "8888:8888"
-    environment:
-      SPRING_CLOUD_GATEWAY_ROUTES_0_URI: http://identity-service:8080
-      SPRING_CLOUD_GATEWAY_ROUTES_1_URI: http://profile-service:8081
-      SPRING_CLOUD_GATEWAY_ROUTES_2_URI: http://notification-service:8082
-      SPRING_CLOUD_GATEWAY_ROUTES_3_URI: http://chat-service:8083
-      SPRING_CLOUD_GATEWAY_ROUTES_4_URI: http://interaction-service:8087
-      SPRING_CLOUD_GATEWAY_ROUTES_5_URI: http://search-service:8090
-      SPRING_CLOUD_GATEWAY_ROUTES_6_URI: http://post-service:8085
-      SPRING_CLOUD_GATEWAY_ROUTES_7_URI: http://follow-service:8084
-      SPRING_CLOUD_GATEWAY_ROUTES_8_URI: http://media-service:8086
-      SPRING_CLOUD_GATEWAY_ROUTES_9_URI: http://realtime-service:8088
-      SPRING_CLOUD_GATEWAY_ROUTES_10_URI: http://ai-service:8092
-      SPRING_CLOUD_GATEWAY_ROUTES_11_URI: http://story-service:8091
     depends_on:
       - identity-service
       - profile-service
