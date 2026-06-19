@@ -116,7 +116,6 @@ export function PostComments({ postId, onProfileClick, onCommentCreated }) {
       };
 
       await dispatch(createCommentThunk(payload)).unwrap();
-      dispatch(fetchCommentsByPost({ postId, page: 0, size: PAGE_SIZE }));
       onCommentCreated?.();
     } catch (err) {
       console.error("Lỗi tạo comment:", err);
@@ -151,7 +150,6 @@ export function PostComments({ postId, onProfileClick, onCommentCreated }) {
       };
 
       await dispatch(createCommentThunk(payload)).unwrap();
-      dispatch(fetchCommentsByPost({ postId, page: 0, size: PAGE_SIZE }));
       setReplyTo(null);
     } catch (err) {
       console.error("Lỗi tạo reply:", err);
