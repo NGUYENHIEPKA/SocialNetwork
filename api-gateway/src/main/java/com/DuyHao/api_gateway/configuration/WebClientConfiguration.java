@@ -1,6 +1,7 @@
 package com.DuyHao.api_gateway.configuration;
 
 import com.DuyHao.api_gateway.repository.IdentityClient;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.reactive.ReactorClientHttpConnector;
@@ -14,6 +15,10 @@ import java.time.Duration;
 
 @Configuration
 public class WebClientConfiguration {
+
+    @Value("${app.identity.url:http://localhost:8080/identity}")
+    private String identityUrl;
+
     @Bean
     WebClient webClient() {
         ConnectionProvider provider = ConnectionProvider.builder("identity-pool")
@@ -27,7 +32,7 @@ public class WebClientConfiguration {
                 .responseTimeout(Duration.ofSeconds(10));
 
         return WebClient.builder()
-                .baseUrl("http://localhost:8080/identity")
+                .baseUrl(identityUrl)
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
     }
