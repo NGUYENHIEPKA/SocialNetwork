@@ -36,10 +36,8 @@ export const createComment = createAsyncThunk(
         mediaIds: mediaIds || []
       });
 
-      // Chỉ tăng commentCount cho top-level comment, không tăng cho reply
-      if (!parentId) {
-        dispatch(syncCommentCount({ postId, delta: +1 }));
-      }
+      // Tăng commentCount cho cả top-level comment lẫn reply (backend tính cả hai)
+      dispatch(syncCommentCount({ postId, delta: +1 }));
 
       return { postId, data: res?.data?.result || res?.result };
     } catch (err) {
