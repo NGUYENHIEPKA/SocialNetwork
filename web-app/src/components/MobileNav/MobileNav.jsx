@@ -1,4 +1,4 @@
-import { Home, Search, Heart, User, PlusSquare } from "lucide-react";
+import { Home, Search, Heart, User, PlusSquare, Archive } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { openComposer } from "../../store/composerSlice";
@@ -18,6 +18,7 @@ export function MobileNav() {
     { id: "new", icon: PlusSquare, action: () => dispatch(openComposer({ text: "", files: [] })) },
     { id: "activity", icon: Heart, path: "/activity" },
     { id: "profile", icon: User, path: "/profile" },
+    { id: "story", icon: Archive, path: "/story/archive" },
   ];
 
   return (
@@ -36,7 +37,9 @@ export function MobileNav() {
       <div className="md:hidden fixed bottom-0 left-0 right-0 h-16 border-t border-border bg-background z-40 flex items-center justify-around px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = currentPage === item.id || (item.id === "profile" && location.pathname.startsWith("/profile"));
+          const isActive = currentPage === item.id || 
+            (item.id === "profile" && location.pathname.startsWith("/profile")) ||
+            (item.id === "story" && location.pathname.startsWith("/story"));
           
           return (
             <button
