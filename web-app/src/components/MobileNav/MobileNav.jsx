@@ -17,8 +17,8 @@ export function MobileNav() {
     { id: "search", icon: Search, path: "/search" },
     { id: "new", icon: PlusSquare, action: () => dispatch(openComposer({ text: "", files: [] })) },
     { id: "activity", icon: Heart, path: "/activity" },
-    { id: "profile", icon: User, path: "/profile" },
     { id: "story", icon: Archive, path: "/story/archive" },
+    { id: "profile", icon: User, path: "/profile" },
   ];
 
   return (
