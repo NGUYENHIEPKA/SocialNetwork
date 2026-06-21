@@ -8,15 +8,18 @@ export function useVersionCheck() {
   const toastShownRef = useRef(false);
 
   useEffect(() => {
-    // Bỏ qua khi dev local
-    if (CURRENT_VERSION === 'dev') return;
+    console.log('[VersionCheck] CURRENT_VERSION:', CURRENT_VERSION);
 
     const check = async () => {
       try {
         const res = await fetch('/version.json?t=' + Date.now());
-        if (!res.ok) return;
+        if (!res.ok) {
+          console.log('[VersionCheck] version.json fetch failed:', res.status);
+          return;
+        }
 
         const { version } = await res.json();
+        console.log('[VersionCheck] server version:', version, '| current:', CURRENT_VERSION, '| same?', version === CURRENT_VERSION);
 
         if (version !== CURRENT_VERSION && !toastShownRef.current) {
           toastShownRef.current = true;
