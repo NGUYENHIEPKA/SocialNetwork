@@ -3,9 +3,21 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
+import fs from 'fs';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    // Generate version.json mỗi lần build
+    {
+      name: 'generate-version',
+      buildStart() {
+        const version = process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString();
+        fs.writeFileSync('./public/version.json', JSON.stringify({ version }));
+      },
+    },
+  ],
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {
@@ -53,6 +65,9 @@ export default defineConfig({
   build: {
     target: 'esnext',
     outDir: 'dist',
+  },
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA || 'dev'),
   },
   server: {
     port: 3000,
