@@ -581,7 +581,7 @@ export function ChatWindow({ conversation, onSendMessageSuccess, incomingMessage
                       </div>
                     ) : (
                       <div className={`relative group flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}>
-                        <div className={`flex items-center gap-2 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                        <div className={`flex items-center gap-2 ${msg.isMe ? 'flex-row' : 'flex-row-reverse'}`}>
                           {/* Controls (Smile, Pencil, Revoke) */}
                           {!msg.content?.startsWith("📞 Cuộc gọi") && (
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

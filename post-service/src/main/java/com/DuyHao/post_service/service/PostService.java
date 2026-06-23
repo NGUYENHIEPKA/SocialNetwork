@@ -1,8 +1,10 @@
 package com.DuyHao.post_service.service;
 
+import com.DuyHao.post_service.FeignClient.AiClient;
 import com.DuyHao.post_service.FeignClient.InteractionClient;
 import com.DuyHao.post_service.FeignClient.MediaClient;
 import com.DuyHao.post_service.FeignClient.UserClient;
+import com.DuyHao.post_service.dto.request.AiTagRequest;
 import com.DuyHao.post_service.dto.response.*;
 import com.DuyHao.post_service.entity.Post;
 import com.DuyHao.post_service.mapper.PostMapper;
@@ -28,6 +30,7 @@ public class PostService {
     private final InteractionClient interactionClient;
     private final GeoIpService geoIpService;
     private final LocalFeedCacheService localFeedCacheService;
+    private final AiClient aiClient;
 
     // ==================== CREATE ====================
     public PostResponse create(
@@ -42,11 +45,44 @@ public class PostService {
         // Resolve city từ IP
         String city = geoIpService.resolveCity(clientIp);
 
+        // Auto AI Tagging if no manual tags are provided
+        List<String> resolvedTags = tags;
+        if (resolvedTags == null || resolvedTags.isEmpty()) {
+            List<String> imageUrls = new ArrayList<>();
+            if (mediaIds != null && !mediaIds.isEmpty()) {
+                try {
+                    List<MediaResponse> mediaResponses = mediaClient.getMediaByIds(mediaIds);
+                    if (mediaResponses != null) {
+                        imageUrls = mediaResponses.stream()
+                                .filter(m -> "image".equalsIgnoreCase(m.getMediaType()))
+                                .map(MediaResponse::getMediaUrl)
+                                .collect(Collectors.toList());
+                    }
+                } catch (Exception e) {
+                    System.err.println("Lỗi lấy URL ảnh từ media-service: " + e.getMessage());
+                }
+            }
+
+            try {
+                AiTagResponse aiResponse = aiClient.extractTags(AiTagRequest.builder()
+                        .content(content)
+                        .imageUrls(imageUrls)
+                        .threshold(0.35)
+                        .build());
+                if (aiResponse != null && aiResponse.getTags() != null) {
+                    resolvedTags = aiResponse.getTags();
+                }
+            } catch (Exception e) {
+                System.err.println("Lỗi gọi AI Auto Tagging: " + e.getMessage());
+                resolvedTags = new ArrayList<>();
+            }
+        }
+
         Post post = Post.builder()
                 .userId(user.getUserId())
                 .content(content)
                 .scope("public")
-                .tags(tags)
+                .tags(resolvedTags)
                 .city(city)
                 .createdAt(LocalDateTime.now())
                 .build();

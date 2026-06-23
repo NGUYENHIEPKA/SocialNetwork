@@ -19,7 +19,7 @@ export function ConversationSidebar({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [searchLoading, setSearchLoading] = useState(false);
-  
+
   // Group Create State
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -110,7 +110,7 @@ export function ConversationSidebar({
             )}
             <h2 className="text-xl">Message</h2>
           </div>
-          
+
           <Dialog open={isGroupModalOpen} onOpenChange={setIsGroupModalOpen}>
             <DialogTrigger asChild>
               <button className="p-2 hover:bg-[#252525] rounded-full transition-colors" title="New Group">
@@ -144,7 +144,7 @@ export function ConversationSidebar({
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full bg-[#1a1a1a] border border-[#333] rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-[#555]"
                     />
-                    
+
                     {searchQuery && (
                       <div className="absolute left-0 right-0 mt-2 bg-[#1a1a1a] border border-[#333] rounded-md max-h-40 overflow-auto z-20">
                         {searchLoading ? (
@@ -156,12 +156,12 @@ export function ConversationSidebar({
                           <button
                             key={user.userId}
                             onClick={() => {
-                                handleToggleUserSelection(user);
-                                setSearchQuery("");
+                              handleToggleUserSelection(user);
+                              setSearchQuery("");
                             }}
                             className="w-full text-left flex items-center gap-3 p-3 hover:bg-[#252525] transition-colors border-b border-[#333]"
                           >
-                            <UserAvatar user={{...user, id: user.userId, avatar: user.avatarUrl}} avatarClassName="w-8 h-8" />
+                            <UserAvatar user={{ ...user, id: user.userId, avatar: user.avatarUrl }} avatarClassName="w-8 h-8" />
                             <div className="text-sm">{user.fullName || user.username}</div>
                           </button>
                         ))}
@@ -192,7 +192,7 @@ export function ConversationSidebar({
             </DialogContent>
           </Dialog>
         </div>
-        
+
         {/* Search */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />

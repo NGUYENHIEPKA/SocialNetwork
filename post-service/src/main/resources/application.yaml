@@ -2,6 +2,14 @@ spring:
   application:
     name: post-service
 
+  cloud:
+    openfeign:
+      client:
+        config:
+          ai-service:
+            connect-timeout: 10000
+            read-timeout: 60000
+
   datasource:
     url: jdbc:postgresql://localhost:5432/POST
     username: admin123
@@ -30,6 +38,7 @@ app:
     profile: http://localhost:8081/profile
     media: http://localhost:8086
     interaction: http://localhost:8087/interaction
+    ai: http://localhost:8092
   geo:
     ipinfo-token: e9580fb14a1286
     # test chạy localhost
@@ -38,3 +47,11 @@ app:
 
 deepl:
   api-key: 12e45efd-869f-4b58-8043-aaf7689aa828:fx
+
+cloud:
+  openfeign:
+    client:
+      config:
+        ai-service:
+          connect-timeout: 50000
+          read-timeout: 120000

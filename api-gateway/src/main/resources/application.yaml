@@ -12,7 +12,7 @@ spring:
     gateway:
       httpclient:
         connect-timeout: 5000
-        response-timeout: 30s
+        response-timeout: 120s
         pool:
           type: disabled
       routes:

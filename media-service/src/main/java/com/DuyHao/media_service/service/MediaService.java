@@ -191,6 +191,14 @@ public class MediaService {
         medias.forEach(this::deleteMedia);
     }
 
+    // ==================== GET BY IDS ====================
+    public List<MediaResponse> getMediaByIds(List<String> mediaIds) {
+        if (mediaIds == null || mediaIds.isEmpty()) return List.of();
+        return mediaRepository.findAllByIdIn(mediaIds).stream()
+                .map(mediaMapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
     // ==================== VALIDATE ====================
     private void validateMedia(MultipartFile file) {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("File trống");

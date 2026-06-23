@@ -18,4 +18,7 @@ public interface MediaClient {
 
     @PutMapping("/internal/media/assign/post")
     void assignMediaToPost(@RequestParam("postId") String postId, @RequestBody List<String> mediaIds);
+
+    @PostMapping("/internal/media/batch")
+    List<MediaResponse> getMediaByIds(@RequestBody List<String> mediaIds);
 }

@@ -84,4 +84,10 @@ public class InternalMediaController {
     public void assignMediaToUser(@RequestParam String userId, @RequestParam String mediaId) {
         mediaService.assignMediaToUser(userId, mediaId);
     }
+
+    // ==================== GET BATCH BY IDS ====================
+    @PostMapping("/batch")
+    public List<MediaResponse> getMediaByIds(@RequestBody List<String> mediaIds) {
+        return mediaService.getMediaByIds(mediaIds);
+    }
 }
