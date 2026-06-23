@@ -1,6 +1,7 @@
 package com.DuyHao.post_service.service;
 
 import com.DuyHao.post_service.FeignClient.AiClient;
+import com.DuyHao.post_service.FeignClient.FollowClient;
 import com.DuyHao.post_service.FeignClient.InteractionClient;
 import com.DuyHao.post_service.FeignClient.MediaClient;
 import com.DuyHao.post_service.FeignClient.UserClient;
@@ -11,6 +12,7 @@ import com.DuyHao.post_service.mapper.PostMapper;
 import com.DuyHao.post_service.repository.PostRepository;
 import com.DuyHao.post_service.util.TextNormalizer;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -31,6 +33,7 @@ public class PostService {
     private final GeoIpService geoIpService;
     private final LocalFeedCacheService localFeedCacheService;
     private final AiClient aiClient;
+    private final FollowClient followClient;
 
     // ==================== CREATE ====================
     public PostResponse create(
@@ -226,32 +229,66 @@ public class PostService {
         Map<String, Double> userWeights = userClient.getUserPreferences(currentUserId);
         if (userWeights == null) userWeights = new HashMap<>();
 
-        // 2. Candidate Generation (Top 200 recent posts)
+        // 2. Fetch Following IDs (Social Graph)
+        List<String> followingIds = new ArrayList<>();
+        try {
+            List<String> fetchedIds = followClient.getFollowingIds(currentUserId);
+            if (fetchedIds != null) {
+                followingIds = fetchedIds;
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi gọi follow-service lấy danh sách following: " + e.getMessage());
+        }
+
+        // 3. Candidate Generation (Top 200 recent posts)
         List<Post> candidates = postRepository
                 .findAll(PageRequest.of(0, 200, Sort.by("createdAt").descending()))
                 .getContent();
 
-        // 3. Scoring
+        // 4. Scoring (Hybrid Fusion)
+        double W_CONTENT = 0.3; // Trọng số sở thích/tag
+        double W_SOCIAL = 0.5; // Trọng số quan hệ bạn bè
+        double W_RECENCY = 0.2; // Trọng số độ mới của bài viết
+
         final Map<String, Double> finalWeights = userWeights;
+        final List<String> finalFollowingIds = followingIds;
+        LocalDateTime now = LocalDateTime.now();
+
         List<PostScorePair> scoredPosts = candidates.stream()
                 .map(post -> {
-                    double score = 0.0;
+                    // a. Tính điểm khớp sở thích/tag (Content Score)
+                    double contentScore = 0.0;
                     List<String> tags = post.getTags();
                     if (tags != null && !tags.isEmpty()) {
                         for (String tag : tags) {
-                            score += finalWeights.getOrDefault(tag, 0.1);
+                            contentScore += finalWeights.getOrDefault(tag, 0.1);
                         }
-                    } else {
-                        score = 0.1;
                     }
-                    return new PostScorePair(post, score);
+
+                    // b. Tính điểm quan hệ xã hội (Social Score)
+                    double socialScore = 0.0;
+                    if (post.getUserId().equals(currentUserId)) {
+                        socialScore = 1.0;
+                    } else if (finalFollowingIds.contains(post.getUserId())) {
+                        socialScore = 1.0;
+                    }
+
+                    // c. Tính điểm độ mới (Recency Score)
+                    long hours = ChronoUnit.HOURS.between(post.getCreatedAt(), now);
+                    if (hours < 0) hours = 0;
+                    double recencyScore = Math.exp(-0.01 * hours); // Phân rã theo thời gian
+
+                    // d. Tổng hợp điểm số theo trọng số
+                    double finalScore = W_CONTENT * contentScore + W_SOCIAL * socialScore + W_RECENCY * recencyScore;
+
+                    return new PostScorePair(post, finalScore);
                 })
                 .collect(Collectors.toList());
 
-        // 4. Ranking (Sort by Score descending)
+        // 5. Ranking (Sort by Score descending)
         scoredPosts.sort((p1, p2) -> Double.compare(p2.score, p1.score));
 
-        // 5. Pagination
+        // 6. Pagination
         int start = Math.min(page * size, scoredPosts.size());
         int end = Math.min((page + 1) * size, scoredPosts.size());
         if (start > end) return Collections.emptyList();
@@ -259,7 +296,7 @@ public class PostService {
         List<Post> pagedPosts =
                 scoredPosts.subList(start, end).stream().map(pair -> pair.post).toList();
 
-        // 6. Mapping to Response
+        // 7. Mapping to Response
         Set<String> userIds = pagedPosts.stream()
                 .flatMap(p -> {
                     Set<String> ids = new HashSet<>();
