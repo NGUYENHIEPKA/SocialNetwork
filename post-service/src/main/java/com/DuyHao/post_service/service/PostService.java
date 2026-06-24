@@ -351,6 +351,29 @@ public class PostService {
     public PostResponse getPostById(String postId, String currentUserId) {
         Post post = postRepository.findById(postId).orElseThrow(() -> new RuntimeException("Post not found"));
 
+        // Tracking hành vi View Detail (+0.02)
+        if (currentUserId != null && !currentUserId.equals(post.getUserId())) {
+            List<String> tags = post.getTags();
+            if (tags != null && !tags.isEmpty()) {
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        userClient.updateCategoryWeights(
+                                currentUserId,
+                                com.DuyHao.post_service
+                                        .dto
+                                        .request
+                                        .WeightUpdateRequest
+                                        .builder()
+                                        .tags(tags)
+                                        .delta(0.02)
+                                        .build());
+                    } catch (Exception e) {
+                        System.err.println("Lỗi cập nhật sở thích khi xem bài viết: " + e.getMessage());
+                    }
+                });
+            }
+        }
+
         Set<String> ids = new HashSet<>();
         ids.add(post.getUserId());
         if (post.getRepostOf() != null) ids.add(post.getRepostOf().getUserId());
@@ -381,6 +404,27 @@ public class PostService {
         Post original = postRepository
                 .findById(originalPostId)
                 .orElseThrow(() -> new RuntimeException("Original post not found"));
+
+        // Tăng sở thích khi repost (+0.20)
+        List<String> tags = original.getTags();
+        if (tags != null && !tags.isEmpty()) {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    userClient.updateCategoryWeights(
+                            userId,
+                            com.DuyHao.post_service
+                                    .dto
+                                    .request
+                                    .WeightUpdateRequest
+                                    .builder()
+                                    .tags(tags)
+                                    .delta(0.20)
+                                    .build());
+                } catch (Exception e) {
+                    System.err.println("Lỗi cập nhật sở thích khi repost: " + e.getMessage());
+                }
+            });
+        }
 
         // Tạo bài vỏ
         Post repost = Post.builder()
@@ -522,5 +566,10 @@ public class PostService {
         }
 
         return postMapper.toResponse(post, user, mediaUrls, interaction, originalUser);
+    }
+
+    public List<String> getPostTags(String id) {
+        Post post = postRepository.findById(id).orElseThrow(() -> new RuntimeException("Post not found"));
+        return post.getTags() != null ? post.getTags() : Collections.emptyList();
     }
 }

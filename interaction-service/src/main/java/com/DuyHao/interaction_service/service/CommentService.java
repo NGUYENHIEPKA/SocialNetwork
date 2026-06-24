@@ -97,6 +97,9 @@ public class CommentService {
             System.err.println("Lỗi push notification comment/reply: " + e.getMessage());
         }
 
+        // Tăng sở thích khi comment (+0.15)
+        triggerWeightUpdate(userId, request.getPostId(), 0.15);
+
         return commentMapper.toResponse(comment, user, mediaUrls, 0, false, 0);
     }
 
@@ -185,6 +188,28 @@ public class CommentService {
                 mediaClient.deleteMediaByCommentId(commentId);
             } catch (Exception e) {
                 System.err.println("Lỗi xóa media async cho comment: " + e.getMessage());
+            }
+        });
+    }
+
+    private void triggerWeightUpdate(String userId, String postId, double delta) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                List<String> tags = postClient.getPostTags(postId);
+                if (tags != null && !tags.isEmpty()) {
+                    userClient.updateCategoryWeights(
+                            userId,
+                            com.DuyHao.interaction_service
+                                    .dto
+                                    .request
+                                    .WeightUpdateRequest
+                                    .builder()
+                                    .tags(tags)
+                                    .delta(delta)
+                                    .build());
+                }
+            } catch (Exception e) {
+                System.err.println("Lỗi cập nhật sở thích hành vi Comment: " + e.getMessage());
             }
         });
     }

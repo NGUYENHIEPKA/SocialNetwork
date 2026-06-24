@@ -1,8 +1,9 @@
 import { useSelector } from "react-redux";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated } = useSelector((state) => state.user);
+  const { isAuthenticated, profile } = useSelector((state) => state.user);
+  const location = useLocation();
 
   if (!isAuthenticated) {
     // Redirect them to the /login page, but save the current location they were
@@ -10,6 +11,13 @@ const ProtectedRoute = ({ children }) => {
     // along to that page after they login, which is a nicer user experience
     // than dropping them off on the home page.
     return <Navigate to="/login" replace />;
+  }
+
+  // Kiểm tra xem đã hoàn thành lựa chọn sở thích chưa
+  const hasInterests = profile && profile.categoryWeights && Object.keys(profile.categoryWeights).length > 0;
+
+  if (profile && !hasInterests && location.pathname !== "/onboarding/interests") {
+    return <Navigate to="/onboarding/interests" replace />;
   }
 
   return children ? children : <Outlet />;

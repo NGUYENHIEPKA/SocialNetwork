@@ -38,6 +38,7 @@ public class LikeService {
             if (alreadyLiked) {
                 likeRepository.deleteByUserIdAndPostId(userId, postId);
                 safeNotify(() -> notificationClient.unlikePost(postOwnerId, userId, postId));
+                triggerWeightUpdate(userId, postId, -0.10);
             } else {
                 Like like = Like.builder()
                         .userId(userId)
@@ -46,6 +47,7 @@ public class LikeService {
                         .build();
                 likeRepository.save(like);
                 safeNotify(() -> notificationClient.likePost(postOwnerId, userId, postId));
+                triggerWeightUpdate(userId, postId, 0.10);
             }
 
             long count = likeRepository.countByPostId(postId);
@@ -93,6 +95,28 @@ public class LikeService {
             action.run();
         } catch (Exception ignored) {
         }
+    }
+
+    private void triggerWeightUpdate(String userId, String postId, double delta) {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                List<String> tags = postClient.getPostTags(postId);
+                if (tags != null && !tags.isEmpty()) {
+                    userClient.updateCategoryWeights(
+                            userId,
+                            com.DuyHao.interaction_service
+                                    .dto
+                                    .request
+                                    .WeightUpdateRequest
+                                    .builder()
+                                    .tags(tags)
+                                    .delta(delta)
+                                    .build());
+                }
+            } catch (Exception e) {
+                System.err.println("Lỗi cập nhật sở thích hành vi Like/Unlike: " + e.getMessage());
+            }
+        });
     }
 
     // Lấy danh sách người đã like bài viết (tối đa limit người, mới nhất trước)

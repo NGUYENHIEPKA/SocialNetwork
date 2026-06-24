@@ -73,4 +73,11 @@ public class InternalUserProfileController {
     public java.util.Map<String, Double> getUserPreferences(@PathVariable("id") String id) {
         return userProfileRepositoryService.getUserPreferences(id);
     }
+
+    @PostMapping("/internal/users/{id}/preferences/update")
+    public java.util.Map<String, Double> updateCategoryWeights(
+            @PathVariable("id") String id,
+            @RequestBody com.DuyHao.profile_service.dto.request.WeightUpdateRequest request) {
+        return userProfileRepositoryService.updateCategoryWeights(id, request.getTags(), request.getDelta());
+    }
 }

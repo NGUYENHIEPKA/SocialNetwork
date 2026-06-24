@@ -24,4 +24,7 @@ public interface PostClient {
     // Gửi yêu cầu xóa bài repost khỏi Profile
     @DeleteMapping("/internal/posts/repost")
     String deleteRepost(@RequestParam("userId") String userId, @RequestParam("originalPostId") String originalPostId);
+
+    @GetMapping("/internal/posts/{id}/tags")
+    List<String> getPostTags(@PathVariable("id") String id);
 }

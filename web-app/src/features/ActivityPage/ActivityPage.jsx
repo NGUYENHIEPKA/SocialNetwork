@@ -180,10 +180,10 @@ export function ActivityPage() {
               <motion.div
                 className="w-full h-full bg-foreground rounded-full shadow-sm"
                 animate={{
-                  x: activeTab === "all" ? 0 : 
-                     activeTab === "comments" ? "100%" : 
-                     activeTab === "likes" ? "200%" : 
-                     activeTab === "reposts" ? "300%" : "400%",
+                  x: activeTab === "all" ? 0 :
+                    activeTab === "comments" ? "100%" :
+                      activeTab === "likes" ? "200%" :
+                        activeTab === "reposts" ? "300%" : "400%",
                 }}
                 transition={{ type: "spring", stiffness: 350, damping: 28 }}
               />
@@ -427,7 +427,7 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
   const users = Array.isArray(activity.users) && activity.users.length > 0
     ? activity.users
     : (activity.user ? [activity.user] : []);
-  const count = activity.count || users.length || 1;
+  const count = activity.length || users.length || 1;
   const firstUser = users[0];
   const othersCount = Math.max(0, count - 1);
 

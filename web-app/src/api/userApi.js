@@ -12,6 +12,12 @@ const userApi = {
     const url = "profile/myInfo";
     return axiosClient.put(url, payload); 
   },
+
+  // Lấy danh sách sở thích sẵn có
+  getAvailableInterests() {
+    const url = "profile/users/interests";
+    return axiosClient.get(url);
+  },
 };
 
 export default userApi;

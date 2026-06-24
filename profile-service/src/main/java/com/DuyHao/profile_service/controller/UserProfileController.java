@@ -49,4 +49,11 @@ public class UserProfileController {
                 .result(userProfileRepositoryService.updateMyInfo(request))
                 .build();
     }
+
+    @GetMapping("/users/interests")
+    ApiResponse<List<java.util.Map<String, String>>> getAvailableInterests() {
+        return ApiResponse.<List<java.util.Map<String, String>>>builder()
+                .result(userProfileRepositoryService.getAvailableInterests())
+                .build();
+    }
 }

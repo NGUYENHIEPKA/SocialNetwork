@@ -40,4 +40,9 @@ public class InternalPostController {
     public String deleteRepost(@RequestParam String userId, @RequestParam String originalPostId) {
         return postService.deleteRepost(userId, originalPostId);
     }
+
+    @GetMapping("/{id}/tags")
+    public List<String> getPostTags(@PathVariable String id) {
+        return postService.getPostTags(id);
+    }
 }

@@ -26,4 +26,5 @@ public class UserProfileResponse {
     long followerCount;
     long followingCount;
     String connectionsPrivacy; // EVERYONE | FRIENDS_ONLY | ONLY_ME
+    java.util.Map<String, Double> categoryWeights;
 }

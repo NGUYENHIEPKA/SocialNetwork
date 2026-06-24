@@ -1,5 +1,6 @@
 package com.DuyHao.post_service.FeignClient;
 
+import com.DuyHao.post_service.dto.request.WeightUpdateRequest;
 import com.DuyHao.post_service.dto.response.UserResponse;
 import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -19,4 +20,8 @@ public interface UserClient {
 
     @GetMapping("/internal/users/{id}/preferences")
     java.util.Map<String, Double> getUserPreferences(@PathVariable("id") String userId);
+
+    @PostMapping("/internal/users/{id}/preferences/update")
+    java.util.Map<String, Double> updateCategoryWeights(
+            @PathVariable("id") String userId, @RequestBody WeightUpdateRequest request);
 }

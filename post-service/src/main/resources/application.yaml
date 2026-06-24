@@ -39,7 +39,7 @@ app:
     media: http://localhost:8086
     interaction: http://localhost:8087/interaction
     ai: http://localhost:8092
-    follow: http://localhost:8084
+    follow: http://localhost:8084/follow
   geo:
     ipinfo-token: e9580fb14a1286
     # test chạy localhost

@@ -24,6 +24,7 @@ import { ForgotPasswordPage } from "./features/ForgotPasswordPage/ForgotPassword
 import CallOverlay from "./features/MessagePage/components/CallOverlay.jsx";
 import CreateStoryPage from "./features/StoryPage/CreateStoryPage.jsx";
 import StoryArchivePage from "./features/StoryPage/StoryArchivePage.jsx";
+import { OnboardingInterestsPage } from "./features/OnboardingInterestsPage/OnboardingInterestsPage.jsx";
 
 export default function App() {
   const dispatch = useDispatch();
@@ -79,6 +80,9 @@ export default function App() {
             {/* Story create — fullscreen, outside ThreadsLayout */}
             <Route path="/story/create/image" element={<CreateStoryPage mode="image" />} />
             <Route path="/story/create/text" element={<CreateStoryPage mode="text" />} />
+
+            {/* Onboarding Interests page — fullscreen, outside ThreadsLayout */}
+            <Route path="/onboarding/interests" element={<OnboardingInterestsPage />} />
 
             {/* Main app routes with Layout */}
             <Route path="/" element={<ThreadsLayout />}>

@@ -2,6 +2,7 @@ package com.DuyHao.profile_service.dto.request;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import java.time.LocalDate;
+import java.util.List;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -22,4 +23,5 @@ public class ProfileCreationRequest {
     String avatarUrl;
     String bio;
     String spotifyLink;
+    List<String> interests;
 }

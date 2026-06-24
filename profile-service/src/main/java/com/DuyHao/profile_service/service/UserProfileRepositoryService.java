@@ -59,6 +59,16 @@ public class UserProfileRepositoryService {
         if (userProfile.getConnectionsPrivacy() == null) {
             userProfile.setConnectionsPrivacy("EVERYONE");
         }
+
+        // Initialize user preferences from request
+        java.util.Map<String, Double> initialWeights = new java.util.HashMap<>();
+        if (request.getInterests() != null) {
+            for (String tag : request.getInterests()) {
+                initialWeights.put(tag, 0.5);
+            }
+        }
+        userProfile.setCategoryWeights(initialWeights);
+
         userProfile = userProfileRepository.save(userProfile);
 
         return userProfileMapper.toUserProfileResponse(userProfile);
@@ -121,6 +131,19 @@ public class UserProfileRepositoryService {
                 userProfile.setAvatarUrl(newAvatarUrl);
             }
         }
+
+        // Initialize or update selected interests/weights to 0.5
+        if (request.getInterests() != null) {
+            java.util.Map<String, Double> categoryWeights = userProfile.getCategoryWeights();
+            if (categoryWeights == null) {
+                categoryWeights = new java.util.HashMap<>();
+            }
+            for (String tag : request.getInterests()) {
+                categoryWeights.put(tag, 0.5);
+            }
+            userProfile.setCategoryWeights(categoryWeights);
+        }
+
         userProfile = userProfileRepository.save(userProfile);
         return userProfileMapper.toUserProfileResponse(userProfile);
     }
@@ -176,5 +199,49 @@ public class UserProfileRepositoryService {
                 .findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Profile not found!"));
         return userProfile.getCategoryWeights();
+    }
+
+    @Transactional("transactionManager")
+    public java.util.Map<String, Double> updateCategoryWeights(String userId, List<String> tags, double delta) {
+        UserProfile userProfile = userProfileRepository
+                .findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Profile not found!"));
+
+        java.util.Map<String, Double> weights = userProfile.getCategoryWeights();
+        if (weights == null) {
+            weights = new java.util.HashMap<>();
+        }
+
+        for (String tag : tags) {
+            double currentWeight = weights.getOrDefault(tag, 0.1);
+            double newWeight = currentWeight + delta;
+            if (newWeight < 0.0) newWeight = 0.0;
+            if (newWeight > 1.0) newWeight = 1.0;
+            weights.put(tag, newWeight);
+        }
+
+        userProfile.setCategoryWeights(weights);
+        userProfileRepository.save(userProfile);
+        return weights;
+    }
+
+    public List<java.util.Map<String, String>> getAvailableInterests() {
+        List<java.util.Map<String, String>> interests = new java.util.ArrayList<>();
+        interests.add(java.util.Map.of("tag", "tech_auto", "displayName", "Technology & Vehicles / Công nghệ & Xe"));
+        interests.add(java.util.Map.of("tag", "entertainment", "displayName", "Entertainment / Giải trí, Nghệ thuật"));
+        interests.add(
+                java.util.Map.of("tag", "travel_nature", "displayName", "Travel & Nature / Du lịch & Thiên nhiên"));
+        interests.add(java.util.Map.of("tag", "food_drink", "displayName", "Food & Drink / Ẩm thực & Ăn uống"));
+        interests.add(java.util.Map.of("tag", "sports", "displayName", "Sports / Thể thao & Thể hình"));
+        interests.add(
+                java.util.Map.of("tag", "fashion_beauty", "displayName", "Fashion & Beauty / Thời trang & Làm đẹp"));
+        interests.add(java.util.Map.of("tag", "gaming", "displayName", "Gaming / Trò chơi điện tử"));
+        interests.add(java.util.Map.of("tag", "education", "displayName", "Education / Giáo dục & Phát triển"));
+        interests.add(java.util.Map.of("tag", "news_society", "displayName", "News & Society / Tin tức & Xã hội"));
+        interests.add(java.util.Map.of("tag", "pets", "displayName", "Pets / Thú cưng & Động vật"));
+        interests.add(java.util.Map.of("tag", "vibe_funny", "displayName", "Funny Vibe / Hài hước & Meme"));
+        interests.add(java.util.Map.of("tag", "vibe_mood", "displayName", "Mood Vibe / Tâm trạng & Cảm xúc"));
+        interests.add(java.util.Map.of("tag", "vibe_motivation", "displayName", "Motivation Vibe / Truyền cảm hứng"));
+        return interests;
     }
 }
