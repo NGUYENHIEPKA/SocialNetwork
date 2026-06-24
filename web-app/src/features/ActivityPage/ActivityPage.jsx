@@ -427,7 +427,7 @@ function ActivityItem({ activity, onProfileClick, onPostClick, onFollowBack }) {
   const users = Array.isArray(activity.users) && activity.users.length > 0
     ? activity.users
     : (activity.user ? [activity.user] : []);
-  const count = activity.count || users.length || 1;
+  const count = activity.length || users.length || 1;
   const firstUser = users[0];
   const othersCount = Math.max(0, count - 1);
 
