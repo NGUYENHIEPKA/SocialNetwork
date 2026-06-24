@@ -29,10 +29,10 @@ export function Sidebar({ currentPage }) {
 
   useEffect(() => {
     // Fetch initial notifications to get unread count — chỉ chạy 1 lần khi profile lần đầu load
-    if (profile?.id) {
+    if (profile?.userId || profile?.id) {
       dispatch(fetchNotifications());
     }
-  }, [dispatch, profile?.id]);
+  }, [dispatch, profile?.userId, profile?.id]);
 
   const menuItems = [
     { id: "feed", label: "Home", icon: Home, path: "/feed" },
